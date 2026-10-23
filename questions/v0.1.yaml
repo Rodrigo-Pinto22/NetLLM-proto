@@ -1,0 +1,15 @@
+# Question set. Bump `version` (and the filename) when questions change, so runs stay comparable.
+version: "0.1"
+questions:
+  - id: tcp-handshake-01
+    question: "In http.pcap, which packets make up the TCP three-way handshake?"
+    pcap: tests/fixtures/http.pcap
+    expected:
+      tools: [apply_filter]
+      answer_contains: ["SYN", "SYN-ACK", "ACK"]
+    tags: [tcp, pcap]
+  - id: kb-udp-01
+    question: "Why does DNS normally use UDP rather than TCP?"
+    expected:
+      answer_contains: ["UDP"]
+    tags: [dns, kb]

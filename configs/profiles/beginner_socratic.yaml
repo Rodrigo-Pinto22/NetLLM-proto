@@ -1,0 +1,4 @@
+name: beginner_socratic
+level: beginner
+language: en
+mode: socratic   # guide with questions and hints before giving the answer
