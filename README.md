@@ -21,7 +21,7 @@ socratic or direct). Everything runs locally via Ollama.
 
 ```bash
 uv sync                  # creates .venv with runtime + dev deps
-cp .env.example .env     # adjust OLLAMA_HOST / model names / paths
+cp .env.example .env     # adjust NETLLM_OLLAMA_HOST / model names / paths
 uv run pytest
 ```
 

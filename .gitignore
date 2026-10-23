@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+.env
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local data: KB docs, chunks, Chroma, traces, eval outputs (keep the folders)
+data/*
+!data/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
