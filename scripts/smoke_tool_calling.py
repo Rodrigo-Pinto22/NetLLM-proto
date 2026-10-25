@@ -17,12 +17,13 @@ import ollama
 from netllm.config import get_settings
 from netllm.pcap import tools
 
-PCAP = "tests/fixtures/http.pcap"
+PCAP = "data/traces/tcp-wireshark-trace1-1.pcapng"
 
 CASES = [
     ("What conversations are in {pcap}?", "list_flows", {}),
     ("Show me every field of packet 4 in {pcap}.", "packet_detail", {"number": 4}),
     ("In {pcap}, which packets are TCP SYNs? Use a display filter.", "apply_filter", {"display_filter": "syn"}),
+    ("Show the three-way handshake of TCP stream 0 in {pcap}.", "tcp_handshake", {"stream": 0}),
 ]
 
 

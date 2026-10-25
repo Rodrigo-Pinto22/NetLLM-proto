@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .backend import PcapBackend
-from .schemas import FilterResult, FlowList, PacketDetail
+from .schemas import FilterResult, FlowList, PacketDetail, TcpHandshake
 
 
 class PysharkBackend(PcapBackend):
@@ -14,4 +14,7 @@ class PysharkBackend(PcapBackend):
         raise NotImplementedError
 
     def apply_filter(self, display_filter: str, limit: int = 50) -> FilterResult:
+        raise NotImplementedError
+
+    def tcp_handshake(self, stream: int) -> TcpHandshake:
         raise NotImplementedError

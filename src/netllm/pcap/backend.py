@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from .schemas import FilterResult, FlowList, PacketDetail
+from .schemas import FilterResult, FlowList, PacketDetail, TcpHandshake
 
 
 class PcapBackend(ABC):
@@ -22,3 +22,6 @@ class PcapBackend(ABC):
 
     @abstractmethod
     def apply_filter(self, display_filter: str, limit: int = 50) -> FilterResult: ...
+
+    @abstractmethod
+    def tcp_handshake(self, stream: int) -> TcpHandshake: ...

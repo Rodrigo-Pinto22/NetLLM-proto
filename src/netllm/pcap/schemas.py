@@ -61,3 +61,33 @@ class FilterResult(BaseModel):
     packets: list[PacketSummary]
     total: int
     truncated: bool
+
+
+class TcpOptions(BaseModel):
+    mss: int | None = None
+    window_scale: int | None = Field(None, description="Shift count; the multiplier is 2**window_scale")
+    sack_permitted: bool = False
+    timestamps: bool = False
+
+
+class HandshakeSegment(BaseModel):
+    number: int
+    rel_ts: float
+    seq: int = Field(description="Raw (absolute) sequence number, not Wireshark's relative one")
+    ack: int | None = Field(None, description="Raw acknowledgement number; None when the ACK flag is clear")
+    flags: str = Field(description="Set flags, e.g. 'SYN', 'SYN,ACK', 'ACK'")
+    window: int = Field(description="Window field as sent; never scaled in SYN segments")
+    options: TcpOptions
+
+
+class TcpHandshake(BaseModel):
+    stream: int = Field(description="tcp.stream, same as Flow.flow_id for TCP flows")
+    client: str
+    client_port: int
+    server: str
+    server_port: int
+    syn: HandshakeSegment | None
+    syn_ack: HandshakeSegment | None
+    ack: HandshakeSegment | None
+    complete: bool = Field(description="All three segments seen, with matching seq/ack numbers")
+    rtt: float | None = Field(None, description="SYN to SYN-ACK time in seconds, measured at the capture point")
