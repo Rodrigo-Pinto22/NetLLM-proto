@@ -1,0 +1,456 @@
+# Question set, see schema.yaml. Bump `version` (and the filename) when questions change, so runs stay comparable.
+# Trace: tcp-wireshark-trace1-1.pcapng from http://gaia.cs.umass.edu/wireshark-labs/wireshark-traces-9e.zip
+# Lab questions: Kurose-Ross Wireshark Lab TCP v9. Book questions: Kurose-Ross 9e, sections 3.5 and 3.7.
+# Times are relative to frame 1 (Wireshark's default Time column).
+version: "0.2"
+questions:
+  # --- Lab questions (trace) -------------------------------------------------------------------
+
+  - id: tcp-endpoints-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q1-Q2"
+    question: >-
+      What IP address and TCP port does the client use to upload alice.txt, and what IP address
+      and port does gaia.cs.umass.edu use for this connection?
+    expected_facts:
+      - fact: The client is 192.168.86.68, TCP port 55639.
+        frames: [1]
+      - fact: gaia.cs.umass.edu is 128.119.245.12, TCP port 80.
+        frames: [1]
+    reference_answer: >-
+      The client sends from 192.168.86.68, port 55639. gaia.cs.umass.edu is 128.119.245.12 and
+      sends and receives on port 80 (HTTP).
+    status: provisional
+    tags: [tcp, addressing]
+
+  - id: tcp-syn-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q3"
+    question: >-
+      What is the raw sequence number of the SYN segment that opens the connection to
+      gaia.cs.umass.edu? What marks it as a SYN, and will the receiver be able to use
+      Selective Acknowledgments?
+    expected_facts:
+      - fact: The SYN is frame 1, sent from 192.168.86.68:55639 to 128.119.245.12:80.
+        frames: [1]
+      - fact: Its raw (absolute) sequence number is 4236649187.
+        value: 4236649187
+        frames: [1]
+      - fact: The SYN flag is set in the TCP flags field (and ACK is not).
+        frames: [1]
+      - fact: SACK is usable because the SYN carries the SACK-permitted option and the SYN-ACK echoes it.
+        frames: [1, 2]
+    reference_answer: >-
+      Frame 1 is the SYN from 192.168.86.68:55639 to 128.119.245.12:80. Its raw sequence number
+      is 4236649187 (Wireshark shows it as relative 0). It is a SYN because the SYN bit is set in
+      the flags field, with ACK clear. Yes, SACK can be used: the client offers the SACK-permitted
+      option in the SYN and the server includes it in its SYN-ACK (frame 2).
+    status: provisional
+    tags: [tcp, handshake]
+
+  - id: tcp-synack-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q4"
+    question: >-
+      What is the raw sequence number of the SYN-ACK sent by gaia.cs.umass.edu, what identifies it
+      as a SYN-ACK, what is its acknowledgement number, and how did the server choose that value?
+    expected_facts:
+      - fact: The SYN-ACK is frame 2, with raw sequence number 1068969752.
+        value: 1068969752
+        frames: [2]
+      - fact: Both the SYN and ACK flags are set.
+        frames: [2]
+      - fact: Its acknowledgement number is 4236649188.
+        value: 4236649188
+        frames: [2]
+      - fact: That is the client's initial sequence number plus one, because the SYN consumes one sequence number.
+        frames: [1, 2]
+    reference_answer: >-
+      Frame 2 is the SYN-ACK; its raw sequence number is 1068969752 (the server's own ISN). It is
+      a SYN-ACK because both the SYN and ACK bits are set. The acknowledgement field is 4236649188,
+      which is the client's ISN 4236649187 plus 1: a SYN counts as one byte of sequence space, so
+      the next byte the server expects is ISN + 1.
+    status: provisional
+    tags: [tcp, handshake]
+
+  - id: tcp-post-seq-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q5"
+    question: >-
+      What is the raw sequence number of the segment that carries the HTTP POST header, how many
+      bytes of payload does it carry, and did all of alice.txt fit in it?
+    expected_facts:
+      - fact: The POST header is in frame 4, with raw sequence number 4236649188 (relative 1).
+        value: 4236649188
+        frames: [4]
+      - fact: Its TCP payload is 1448 bytes.
+        value: 1448
+        frames: [4]
+      - fact: No, the file does not fit; the POST is spread over 106 segments (153425 bytes in total).
+        frames: [4, 153]
+    reference_answer: >-
+      Frame 4 carries the start of the POST. Its raw sequence number is 4236649188 (relative 1,
+      the byte right after the SYN). It carries 1448 bytes of payload. The file is about 152 KB,
+      so it cannot fit in one segment: the POST is sent across 106 segments, frames 4 to 153,
+      153425 bytes of TCP payload in total.
+    status: provisional
+    tags: [tcp, http, segmentation]
+
+  - id: tcp-rtt-01
+    type: trace-computation
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q6"
+    question: >-
+      Treating the segment that carries the start of the HTTP POST as the first data segment,
+      what are the sample RTTs of the first two data segments, and what is EstimatedRTT after the
+      second ACK arrives (initial EstimatedRTT = first SampleRTT, alpha = 0.125)?
+    expected_facts:
+      - fact: The first data segment is frame 4 (relative seq 1, 1448 bytes, contains "POST"), sent at t = 0.024047 s.
+        frames: [4]
+      - fact: It is acknowledged by frame 7 (ack 1449) at t = 0.052671 s, so SampleRTT1 is about 0.028624 s.
+        value: 0.028624
+        tolerance: 0.000005
+        frames: [4, 7]
+      - fact: The second data segment is frame 5, acknowledged by frame 8 (ack 2897), so SampleRTT2 is about 0.028628 s.
+        value: 0.028628
+        tolerance: 0.000005
+        frames: [5, 8]
+      - fact: EstimatedRTT = 0.875 * 0.028624 + 0.125 * 0.028628, about 0.028625 s.
+        value: 0.028625
+        tolerance: 0.000005
+    reference_answer: >-
+      Frame 4 (the POST start) is sent at 0.024047 s and its ACK, frame 7, arrives at 0.052671 s:
+      SampleRTT1 = 0.028624 s. Frame 5 is sent at 0.024048 s and acked by frame 8 at 0.052676 s:
+      SampleRTT2 = 0.028628 s. With EstimatedRTT starting at 0.028624 s,
+      EstimatedRTT = (1 - 0.125) * 0.028624 + 0.125 * 0.028628 = 0.028625 s, about 28.6 ms.
+    status: provisional
+    tags: [tcp, rtt]
+
+  - id: tcp-segment-length-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q7"
+    question: What is the length (header plus payload) of each of the first four data-carrying TCP segments?
+    expected_facts:
+      - fact: The first four data segments are frames 4, 5, 6 and 9.
+        frames: [4, 5, 6, 9]
+      - fact: Each is 1480 bytes of TCP segment, a 32-byte header (20 bytes plus 12 bytes of timestamp options) and 1448 bytes of payload.
+        value: 1480
+        frames: [4, 5, 6, 9]
+      - fact: On the wire each frame is 1514 bytes (14 Ethernet + 20 IP + 1480 TCP); the IP datagram is 1500 bytes.
+        frames: [4, 5, 6, 9]
+    reference_answer: >-
+      Frames 4, 5, 6 and 9 are the first four data segments, and all four are the same size: a
+      32-byte TCP header (20 fixed bytes plus 12 bytes of NOP/NOP/timestamp options) and 1448 bytes
+      of payload, so 1480 bytes of TCP segment. With the 20-byte IP header that is a 1500-byte
+      datagram (the Ethernet MTU), and 1514 bytes per frame including the Ethernet header.
+    status: provisional
+    tags: [tcp, segmentation, mss]
+
+  - id: tcp-rwnd-01
+    type: trace-computation
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q8"
+    question: >-
+      What is the minimum receive buffer space that gaia.cs.umass.edu advertises to the client
+      while the first four data segments are sent? Does lack of receiver buffer ever throttle the
+      sender for those segments?
+    expected_facts:
+      - fact: The server's SYN-ACK (frame 2) advertises 28960 bytes; window fields in SYN segments are not scaled.
+        value: 28960
+        frames: [2]
+      - fact: The server's window scale is 7, so later Window Size Values are multiplied by 128 (frame 7 is 249, i.e. 31872 bytes; frame 8 is 272, i.e. 34816 bytes).
+        frames: [2, 7, 8]
+      - fact: The minimum is therefore 28960 bytes, in the SYN-ACK.
+        value: 28960
+      - fact: No throttling; at most 3 segments (4344 bytes) are unacknowledged, far below the advertised window.
+        frames: [4, 5, 6]
+    reference_answer: >-
+      The SYN-ACK in frame 2 advertises 28960 bytes. That value is used as is, because window
+      scaling does not apply to SYN segments. The server announced a scale factor of 7 (x128), so
+      the next ACKs advertise 249 x 128 = 31872 bytes (frame 7) and 272 x 128 = 34816 bytes
+      (frame 8), and the window keeps growing. The minimum is 28960 bytes. The sender never has
+      more than 3 segments (4344 bytes) in flight during this period, so the receive window does
+      not limit it.
+    status: provisional
+    tags: [tcp, flow-control, window-scaling]
+
+  - id: tcp-retransmissions-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q9"
+    question: Are there any retransmitted segments in the trace? What did you check to find out?
+    expected_facts:
+      - fact: There are no retransmissions.
+      - fact: The client's data sequence numbers increase strictly over all 106 data segments, with no sequence range sent twice.
+        frames: [4, 153]
+      - fact: The display filter tcp.analysis.retransmission matches no packets, and there are no duplicate ACKs from the server.
+    reference_answer: >-
+      No. Looking at the segments from the client to the server, every data segment starts where
+      the previous one ended (sequence numbers only go up, no range is repeated), and the server
+      sends no duplicate ACKs. Wireshark agrees: tcp.analysis.retransmission (or
+      tcp.analysis.flags) matches nothing.
+    status: provisional
+    tags: [tcp, reliability, retransmission]
+
+  - id: tcp-ack-pattern-01
+    type: trace-computation
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q10"
+    question: >-
+      How much data does the receiver typically acknowledge per ACK among the first ten data
+      segments? Is it ever ACKing every other segment among those ten?
+    expected_facts:
+      - fact: The first ten data segments are frames 4, 5, 6, 9, 10, 11, 12, 14, 15 and 20.
+        frames: [4, 5, 6, 9, 10, 11, 12, 14, 15, 20]
+      - fact: Each ACK for them (frames 7, 8, 13, 16, 17, 18, 19, 28, 29, 34) advances the ack number by 1448 bytes, one segment.
+        value: 1448
+        frames: [7, 8, 13, 16, 17, 18, 19, 28, 29, 34]
+      - fact: So the receiver ACKs every segment there, with no ACK-every-other-segment among the first ten.
+      - fact: Delayed ACKs covering two segments (2896 bytes) appear later, e.g. frames 40 and 41.
+        frames: [40, 41]
+    reference_answer: >-
+      Among the first ten data segments (frames 4 to 20), every ACK from the server (frames 7, 8,
+      13, 16-19, 28, 29, 34) moves the ack number forward by exactly 1448 bytes, one segment. So
+      the receiver acknowledges each segment and is not ACKing every other segment there. The
+      delayed-ACK pattern from Table 3.2 shows up later: frames 40 and 41 each acknowledge 2896
+      bytes, two segments.
+    status: provisional
+    tags: [tcp, ack, delayed-ack]
+
+  - id: tcp-throughput-01
+    type: trace-computation
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q11"
+    question: What is the throughput of the TCP connection, and how did you calculate it?
+    expected_facts:
+      - fact: The client sends 153425 bytes of TCP payload (relative seq 1 to 153426).
+        value: 153425
+        frames: [4, 153, 178]
+      - fact: The transfer runs from the first data segment (frame 4, t = 0.024047 s) to the ACK of the last byte (frame 178, t = 0.191496 s), 0.167449 s.
+        value: 0.167449
+        tolerance: 0.001
+        frames: [4, 178]
+      - fact: Throughput is about 153425 / 0.167449 = 916000 bytes/s, about 7.3 Mbit/s.
+        value: 916249
+        tolerance: 50000
+    reference_answer: >-
+      Throughput is data delivered divided by the time it took. The client sent 153425 bytes
+      (the ACK in frame 178 acknowledges relative byte 153426). The first data segment leaves at
+      0.024047 s (frame 4) and the last byte is acknowledged at 0.191496 s (frame 178), so the
+      transfer takes 0.167449 s. 153425 / 0.167449 = about 916 KB/s, or 7.3 Mbit/s. Other
+      reasonable endpoints (e.g. starting at the SYN) give a somewhat lower value.
+    status: provisional
+    tags: [tcp, throughput]
+
+  - id: tcp-slow-start-01
+    type: trace-identification
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q12"
+    question: >-
+      Look at the fleets of segments the client sends around t = 0.025, 0.053, 0.082 and 0.1 s.
+      Is TCP in slow start, congestion avoidance, or some other phase?
+    expected_facts:
+      - fact: The fleets are 3 segments at t = 0.024 s (frames 4-6), 6 at 0.053 s (frames 9-15), 12 at 0.081 s (frames 20-33) and 24 between 0.099 and 0.106 s (frames 35-66).
+        frames: [4, 9, 20, 35, 66]
+      - fact: The fleet size doubles each round trip, which is slow start (cwnd grows by one MSS per ACK).
+      - fact: Congestion avoidance would add only about one segment per RTT, which is not what the trace shows.
+    reference_answer: >-
+      Slow start. The client sends 3 segments at about 0.024 s, 6 at 0.053 s, 12 at 0.081 s and
+      24 between 0.099 and 0.106 s. The amount sent per round trip doubles, as expected when cwnd
+      grows by one MSS for each ACK. In congestion avoidance the fleet would grow by about one
+      segment per RTT. The transfer is short (about 150 KB) and there is no loss, so it likely
+      never leaves slow start.
+    status: provisional
+    tags: [tcp, congestion-control, slow-start]
+
+  - id: tcp-fleet-period-01
+    type: trace-computation
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q13"
+    question: The fleets of segments seem periodic. What can you say about the period?
+    expected_facts:
+      - fact: Fleets start at about 0.024, 0.053 and 0.081 s, roughly 28 ms apart.
+        value: 0.028
+        tolerance: 0.004
+        frames: [4, 9, 20]
+      - fact: That period matches the RTT (about 28.6 ms from the first samples).
+      - fact: The sender transmits when ACKs come back (ACK clocking), so one fleet goes out per round trip.
+    reference_answer: >-
+      The fleets start roughly 28 ms apart (0.024 s, 0.053 s, 0.081 s), which matches the
+      measured RTT of about 28.6 ms. That is because TCP is ACK-clocked: the sender sends a burst,
+      waits for the ACKs to come back one RTT later, and each returning ACK lets it send more. Later
+      fleets are less regular because ACKs come back spread out.
+    status: provisional
+    tags: [tcp, congestion-control, rtt]
+
+  # --- Misconceptions --------------------------------------------------------------------------
+
+  - id: tcp-post-segment-01
+    type: misconception
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, footnote 5"
+    question: >-
+      When I filter on "http", Wireshark shows the POST as frame 153, so the POST was sent at the
+      end of the connection, right?
+    expected_facts:
+      - fact: No. The POST request line and headers are in frame 4, the first data segment after the handshake.
+        frames: [4]
+      - fact: Frame 153 is the last of the 106 segments carrying the POST (it ends with "THE END" of alice.txt).
+        frames: [153]
+      - fact: Wireshark reassembles the TCP stream and labels the HTTP message on the segment that completes it, not the one that starts it.
+    reference_answer: >-
+      No. The POST is spread over 106 TCP segments. Its request line and headers are in frame 4,
+      right after the handshake. Frame 153 is just the last segment, carrying the end of alice.txt
+      ("THE END"). Wireshark reassembles the stream and attaches the decoded HTTP message to the
+      segment that completes it, so the "http" filter shows only that final frame.
+    status: provisional
+    tags: [tcp, http, wireshark]
+
+  - id: tcp-relative-seq-01
+    type: misconception
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, Q3 note"
+    question: Wireshark shows Seq=0 on the SYN, so TCP connections always start at sequence number 0, right?
+    expected_facts:
+      - fact: No. The 0 is Wireshark's relative sequence number; the raw value in the SYN is 4236649187.
+        value: 4236649187
+        frames: [1]
+      - fact: Each side picks its own initial sequence number, effectively random (the server's is 1068969752).
+        frames: [2]
+      - fact: Random ISNs make it unlikely that segments from an old connection or a spoofer are accepted.
+    reference_answer: >-
+      No. Wireshark shows sequence numbers relative to the start of the connection by default, so
+      the SYN displays as 0. The raw sequence number in frame 1 is 4236649187, and the server picks
+      its own, 1068969752 (frame 2). Each side chooses an unpredictable initial sequence number so
+      that stray segments from an earlier connection on the same ports, or forged segments, are
+      unlikely to fall inside the expected range.
+    status: provisional
+    tags: [tcp, handshake, wireshark]
+
+  - id: tcp-window-scaling-01
+    type: misconception
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross Wireshark Lab TCP v9, footnote 7"
+    question: >-
+      Frame 7 from the server says window 249. Doesn't that mean the server only has 249 bytes of
+      buffer and the client should be blocked?
+    expected_facts:
+      - fact: No. 249 is the raw Window Size Value, which must be multiplied by the window scale factor.
+        frames: [7]
+      - fact: The server announced window scale 7 in its SYN-ACK, a factor of 128, so 249 means 31872 bytes.
+        value: 31872
+        frames: [2, 7]
+      - fact: The 16-bit window field can express at most 65535 bytes, which is why the window scale option exists.
+    reference_answer: >-
+      No. The TCP window field is only 16 bits, so with the window scale option the value is
+      multiplied by 2^scale. The server set scale 7 in its SYN-ACK (frame 2), so 249 means
+      249 x 128 = 31872 bytes of buffer. That is plenty for the 3 segments in flight. Wireshark
+      shows both the raw "Window" and the "Calculated window size" fields.
+    status: provisional
+    tags: [tcp, flow-control, window-scaling]
+
+  - id: tcp-ack-number-01
+    type: misconception
+    trace: data/traces/tcp-wireshark-trace1-1.pcapng
+    source: "Kurose-Ross 9e, section 3.5.2"
+    question: >-
+      Frame 7 ACKs 1449. That is the number of the last byte the server received from frame 4,
+      right?
+    expected_facts:
+      - fact: No. The acknowledgement number is the next byte the receiver expects, not the last byte received.
+      - fact: Frame 4 carries relative bytes 1 to 1448, so the server expects byte 1449 next.
+        frames: [4, 7]
+      - fact: TCP ACKs are cumulative; ack 1449 confirms every byte up to 1448.
+    reference_answer: >-
+      No. TCP's acknowledgement number is the sequence number of the next byte the receiver is
+      waiting for. Frame 4 carries relative bytes 1 to 1448, so the server replies with ack 1449,
+      meaning "I have everything up to 1448, send 1449 next". ACKs are cumulative, so one ACK
+      confirms all earlier bytes.
+    status: provisional
+    tags: [tcp, ack, sequence-numbers]
+
+  - id: tcp-flow-vs-congestion-01
+    type: misconception
+    trace: null
+    source: "Kurose-Ross 9e, sections 3.5.5 and 3.7"
+    question: Flow control and congestion control are the same thing in TCP, right? Both slow the sender down.
+    expected_facts:
+      - fact: No. Flow control protects the receiver's buffer; congestion control protects the network.
+      - fact: Flow control uses the receive window (rwnd) advertised by the receiver in each segment.
+      - fact: Congestion control uses the congestion window (cwnd), which the sender infers from loss and delay.
+      - fact: The sender limits unacknowledged data to min(rwnd, cwnd).
+    reference_answer: >-
+      No. Both limit how fast the sender goes, but for different reasons. Flow control stops the
+      sender from overflowing the receiver's buffer: the receiver advertises rwnd, its free buffer
+      space, in every segment. Congestion control stops the senders from overloading the network:
+      each sender keeps its own cwnd, which it adjusts from signs like loss (slow start, congestion
+      avoidance, fast recovery). The sender keeps LastByteSent - LastByteAcked <= min(rwnd, cwnd).
+    status: provisional
+    tags: [tcp, flow-control, congestion-control]
+
+  # --- Conceptual (book) -----------------------------------------------------------------------
+
+  - id: tcp-timeout-01
+    type: conceptual
+    trace: null
+    source: "Kurose-Ross 9e, section 3.5.3"
+    question: How does TCP decide its retransmission timeout, and why not just use the last measured RTT?
+    expected_facts:
+      - fact: EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * SampleRTT, typically alpha = 0.125 (an EWMA).
+      - fact: DevRTT = (1 - beta) * DevRTT + beta * |SampleRTT - EstimatedRTT|, typically beta = 0.25.
+      - fact: TimeoutInterval = EstimatedRTT + 4 * DevRTT.
+      - fact: Single SampleRTTs fluctuate, so smoothing avoids timeouts that are too short or too long.
+      - fact: SampleRTT is not measured for retransmitted segments.
+    reference_answer: >-
+      TCP keeps a smoothed estimate, EstimatedRTT = (1 - a) * EstimatedRTT + a * SampleRTT with a =
+      0.125, because individual samples vary with queuing delay. It also tracks the variability,
+      DevRTT = (1 - b) * DevRTT + b * |SampleRTT - EstimatedRTT| with b = 0.25, and sets
+      TimeoutInterval = EstimatedRTT + 4 * DevRTT: a safety margin that grows when RTTs are
+      unstable. SampleRTT is taken only for segments sent once, since the ACK of a retransmitted
+      segment is ambiguous. On a timeout the interval is doubled.
+    status: provisional
+    tags: [tcp, rtt, timeout]
+
+  - id: tcp-fast-retransmit-01
+    type: conceptual
+    trace: null
+    source: "Kurose-Ross 9e, section 3.5.4"
+    question: What is fast retransmit, and why does TCP wait for three duplicate ACKs rather than one?
+    expected_facts:
+      - fact: When a segment arrives out of order, the receiver re-ACKs the last in-order byte, producing a duplicate ACK.
+      - fact: After three duplicate ACKs the sender retransmits the missing segment without waiting for the timeout.
+      - fact: One or two duplicates can be caused by reordering, so three is taken as a sign of loss.
+    reference_answer: >-
+      When the receiver gets a segment beyond a gap, it immediately ACKs again the next byte it is
+      still waiting for, so the sender sees duplicate ACKs. If three duplicate ACKs arrive for the
+      same data, the sender assumes the segment after it was lost and retransmits it right away,
+      instead of waiting for the retransmission timer, which is often much longer than an RTT.
+      It waits for three rather than one because a slight reordering in the network can also
+      cause one or two duplicates.
+    status: provisional
+    tags: [tcp, reliability, retransmission]
+
+  - id: tcp-reno-loss-01
+    type: conceptual
+    trace: null
+    source: "Kurose-Ross 9e, section 3.7"
+    question: In TCP Reno, how does the sender react to a timeout compared with three duplicate ACKs, and why the difference?
+    expected_facts:
+      - fact: On a timeout, ssthresh = cwnd / 2, cwnd = 1 MSS, and the sender goes back to slow start.
+      - fact: On three duplicate ACKs, ssthresh = cwnd / 2 and cwnd = ssthresh + 3 MSS, entering fast recovery, then congestion avoidance.
+      - fact: Duplicate ACKs show later segments are still getting through, so congestion is milder than when nothing comes back.
+      - fact: TCP Tahoe resets cwnd to 1 MSS in both cases; Reno adds fast recovery.
+    reference_answer: >-
+      On a timeout Reno sets ssthresh to half of cwnd, drops cwnd to 1 MSS and restarts slow start.
+      On three duplicate ACKs it also halves ssthresh, but sets cwnd to ssthresh + 3 MSS and enters
+      fast recovery, then continues in congestion avoidance (additive increase). The reason is
+      that duplicate ACKs mean later segments are still arriving, so the network is still
+      delivering; a timeout means nothing is getting through and is a stronger signal. Tahoe treats
+      both the same way, cutting cwnd to 1 MSS.
+    status: provisional
+    tags: [tcp, congestion-control]

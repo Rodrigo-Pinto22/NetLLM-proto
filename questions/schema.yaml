@@ -1,0 +1,82 @@
+# JSON Schema (written in YAML) for question-set files: questions/vX.Y.yaml.
+# Validate with: uv run python -c "import yaml, jsonschema; jsonschema.validate(yaml.safe_load(open('questions/v0.2.yaml')), yaml.safe_load(open('questions/schema.yaml')))"
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Question set
+type: object
+required: [version, questions]
+additionalProperties: false
+properties:
+  version:
+    type: string
+    pattern: "^[0-9]+\\.[0-9]+$"
+    description: Matches the filename. Bump when any question changes, so runs stay comparable.
+  questions:
+    type: array
+    minItems: 1
+    items: { $ref: "#/$defs/question" }
+
+$defs:
+  question:
+    type: object
+    required: [id, type, trace, question, expected_facts, reference_answer, status]
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+        description: Stable across versions; never reuse an id for a different question.
+      type:
+        enum:
+          - conceptual            # answerable from the KB alone, no trace
+          - trace-identification  # find a packet/field/value in the trace
+          - trace-computation     # derive a number from trace values (RTT, throughput, ...)
+          - misconception         # the question embeds or invites a common wrong belief
+      trace:
+        type: [string, "null"]
+        description: >-
+          Path to the capture, relative to the repo root (traces live in data/traces/, which is
+          gitignored). null for conceptual questions, required for trace-* ones, optional for
+          misconception.
+      source:
+        type: string
+        description: Where the question comes from, e.g. "Kurose-Ross Wireshark Lab TCP v9, Q3".
+      question:
+        type: string
+        description: Exactly what the learner asks the tutor.
+      expected_facts:
+        type: array
+        minItems: 1
+        description: Atomic facts a correct answer must contain. Graded one by one.
+        items:
+          type: object
+          required: [fact]
+          additionalProperties: false
+          properties:
+            fact:
+              type: string
+              description: One checkable statement.
+            value:
+              type: [string, number]
+              description: Canonical value, when the fact reduces to one (for exact/tolerance matching).
+            tolerance:
+              type: number
+              description: Allowed absolute error for numeric values.
+            frames:
+              type: array
+              items: { type: integer, minimum: 1 }
+              description: Wireshark frame numbers that ground this fact.
+      reference_answer:
+        type: string
+        description: A model answer a teacher would accept. Not shown to the tutor.
+      status:
+        enum:
+          - provisional  # drafted (possibly by an LLM), not yet checked against the trace by a human
+          - confirmed    # a human checked every fact and value
+      tags:
+        type: array
+        items: { type: string }
+    allOf:
+      - if: { properties: { type: { const: conceptual } } }
+        then: { properties: { trace: { type: "null" } } }
+      - if: { properties: { type: { enum: [trace-identification, trace-computation] } } }
+        then: { properties: { trace: { type: string } } }
