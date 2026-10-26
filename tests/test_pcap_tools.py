@@ -32,6 +32,18 @@ def test_tool_matches_backend_method(fn):
     assert tool_args == backend_args
 
 
+def test_stub_backend_serves_every_tool(monkeypatch):
+    # The smoke test runs the real tools on StubBackend, so it must implement every method.
+    from netllm.pcap.stub_backend import StubBackend
+
+    stub = StubBackend()
+    monkeypatch.setattr(tools, "_backend", lambda pcap_path: stub)
+    sample = {"pcap_path": "x.pcap", "limit": 5, "number": 1, "display_filter": "tcp", "stream": 0}
+    for fn in tools.TOOLS:
+        out = fn(**{k: sample[k] for k in inspect.signature(fn).parameters})
+        assert isinstance(out, dict) and out
+
+
 def test_mcp_server_builds():
     assert server is not None
 

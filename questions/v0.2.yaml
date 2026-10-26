@@ -21,7 +21,7 @@ questions:
     reference_answer: >-
       The client sends from 192.168.86.68, port 55639. gaia.cs.umass.edu is 128.119.245.12 and
       sends and receives on port 80 (HTTP).
-    status: provisional
+    status: confirmed
     tags: [tcp, addressing]
 
   - id: tcp-syn-01
@@ -47,7 +47,7 @@ questions:
       is 4236649187 (Wireshark shows it as relative 0). It is a SYN because the SYN bit is set in
       the flags field, with ACK clear. Yes, SACK can be used: the client offers the SACK-permitted
       option in the SYN and the server includes it in its SYN-ACK (frame 2).
-    status: provisional
+    status: confirmed
     tags: [tcp, handshake]
 
   - id: tcp-synack-01
@@ -73,7 +73,7 @@ questions:
       a SYN-ACK because both the SYN and ACK bits are set. The acknowledgement field is 4236649188,
       which is the client's ISN 4236649187 plus 1: a SYN counts as one byte of sequence space, so
       the next byte the server expects is ISN + 1.
-    status: provisional
+    status: confirmed
     tags: [tcp, handshake]
 
   - id: tcp-post-seq-01
@@ -97,7 +97,7 @@ questions:
       the byte right after the SYN). It carries 1448 bytes of payload. The file is about 152 KB,
       so it cannot fit in one segment: the POST is sent across 106 segments, frames 4 to 153,
       153425 bytes of TCP payload in total.
-    status: provisional
+    status: confirmed
     tags: [tcp, http, segmentation]
 
   - id: tcp-rtt-01
@@ -148,7 +148,7 @@ questions:
       32-byte TCP header (20 fixed bytes plus 12 bytes of NOP/NOP/timestamp options) and 1448 bytes
       of payload, so 1480 bytes of TCP segment. With the 20-byte IP header that is a 1500-byte
       datagram (the Ethernet MTU), and 1514 bytes per frame including the Ethernet header.
-    status: provisional
+    status: confirmed
     tags: [tcp, segmentation, mss]
 
   - id: tcp-rwnd-01
@@ -176,7 +176,7 @@ questions:
       (frame 8), and the window keeps growing. The minimum is 28960 bytes. The sender never has
       more than 3 segments (4344 bytes) in flight during this period, so the receive window does
       not limit it.
-    status: provisional
+    status: confirmed
     tags: [tcp, flow-control, window-scaling]
 
   - id: tcp-retransmissions-01
@@ -194,7 +194,7 @@ questions:
       the previous one ended (sequence numbers only go up, no range is repeated), and the server
       sends no duplicate ACKs. Wireshark agrees: tcp.analysis.retransmission (or
       tcp.analysis.flags) matches nothing.
-    status: provisional
+    status: confirmed
     tags: [tcp, reliability, retransmission]
 
   - id: tcp-ack-pattern-01
@@ -219,7 +219,7 @@ questions:
       the receiver acknowledges each segment and is not ACKing every other segment there. The
       delayed-ACK pattern from Table 3.2 shows up later: frames 40 and 41 each acknowledge 2896
       bytes, two segments.
-    status: provisional
+    status: confirmed
     tags: [tcp, ack, delayed-ack]
 
   - id: tcp-throughput-01
@@ -244,7 +244,7 @@ questions:
       0.024047 s (frame 4) and the last byte is acknowledged at 0.191496 s (frame 178), so the
       transfer takes 0.167449 s. 153425 / 0.167449 = about 916 KB/s, or 7.3 Mbit/s. Other
       reasonable endpoints (e.g. starting at the SYN) give a somewhat lower value.
-    status: provisional
+    status: confirmed
     tags: [tcp, throughput]
 
   - id: tcp-slow-start-01
@@ -308,7 +308,7 @@ questions:
       right after the handshake. Frame 153 is just the last segment, carrying the end of alice.txt
       ("THE END"). Wireshark reassembles the stream and attaches the decoded HTTP message to the
       segment that completes it, so the "http" filter shows only that final frame.
-    status: provisional
+    status: confirmed
     tags: [tcp, http, wireshark]
 
   - id: tcp-relative-seq-01
@@ -329,7 +329,7 @@ questions:
       its own, 1068969752 (frame 2). Each side chooses an unpredictable initial sequence number so
       that stray segments from an earlier connection on the same ports, or forged segments, are
       unlikely to fall inside the expected range.
-    status: provisional
+    status: confirmed
     tags: [tcp, handshake, wireshark]
 
   - id: tcp-window-scaling-01
@@ -351,7 +351,7 @@ questions:
       multiplied by 2^scale. The server set scale 7 in its SYN-ACK (frame 2), so 249 means
       249 x 128 = 31872 bytes of buffer. That is plenty for the 3 segments in flight. Wireshark
       shows both the raw "Window" and the "Calculated window size" fields.
-    status: provisional
+    status: confirmed
     tags: [tcp, flow-control, window-scaling]
 
   - id: tcp-ack-number-01

@@ -8,12 +8,12 @@ socratic or direct). Everything runs locally via Ollama.
 
 - **Python 3.14** and [uv](https://docs.astral.sh/uv/)
 - **tshark** (Wireshark CLI), used by pyshark to decode captures
-  - Ubuntu/Debian: `sudo apt install tshark` (answer *yes* to allow non-root capture, or skip if you only read files)
+  - Ubuntu/Debian: `sudo apt install tshark` (answer _yes_ to allow non-root capture, or skip if you only read files)
   - macOS: `brew install wireshark`
   - check: `tshark --version`
 - **Ollama** running locally ([ollama.com](https://ollama.com)), with a chat model that supports tool calling:
   ```bash
-  ollama pull gpt-oss:20b
+  ollama pull gemma4:e4b
   ollama serve            # if not already running as a service
   ```
 
@@ -47,19 +47,19 @@ uv run netllm-mcp
 
 ## Layout
 
-| Path | What |
-|---|---|
-| `configs/profiles/` | Learner profiles: level, language, mode |
-| `questions/` | Versioned question sets (YAML) for eval |
-| `docs/adr/` | One-paragraph decision records |
-| `src/netllm/config.py` | Settings from `.env` + profile loader |
-| `src/netllm/ingest/` | PDF/Markdown/text → cleaned, section-aware chunks, with scope |
-| `src/netllm/kb/` | Chroma wrapper, KB manifest/versioning |
-| `src/netllm/pcap/` | Backend interface, pyshark backend, output schemas, tools |
-| `src/netllm/mcp_server.py` | MCP server exposing the pcap tools |
-| `src/netllm/memory/` | Session history, fact store |
-| `src/netllm/agent/` | Agent loop, answer contract, claim check, trace |
-| `src/netllm/eval/` | Eval harness, metrics, run logging |
-| `scripts/` | One-off and gate scripts |
-| `tests/fixtures/` | Small PCAPs only |
-| `data/`, `runs/` | Git-ignored: traces, KB docs, Chroma, eval outputs |
+| Path                       | What                                                          |
+| -------------------------- | ------------------------------------------------------------- |
+| `configs/profiles/`        | Learner profiles: level, language, mode                       |
+| `questions/`               | Versioned question sets (YAML) for eval                       |
+| `docs/adr/`                | One-paragraph decision records                                |
+| `src/netllm/config.py`     | Settings from `.env` + profile loader                         |
+| `src/netllm/ingest/`       | PDF/Markdown/text → cleaned, section-aware chunks, with scope |
+| `src/netllm/kb/`           | Chroma wrapper, KB manifest/versioning                        |
+| `src/netllm/pcap/`         | Backend interface, pyshark backend, output schemas, tools     |
+| `src/netllm/mcp_server.py` | MCP server exposing the pcap tools                            |
+| `src/netllm/memory/`       | Session history, fact store                                   |
+| `src/netllm/agent/`        | Agent loop, answer contract, claim check, trace               |
+| `src/netllm/eval/`         | Eval harness, metrics, run logging                            |
+| `scripts/`                 | One-off and gate scripts                                      |
+| `tests/fixtures/`          | Small PCAPs only                                              |
+| `data/`, `runs/`           | Git-ignored: traces, KB docs, Chroma, eval outputs            |

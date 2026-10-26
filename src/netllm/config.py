@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Ollama reads OLLAMA_HOST itself; mirrored here so the rest of the code has one source.
     ollama_host: str = "http://localhost:11434"
-    chat_model: str = "gpt-oss:20b"
+    chat_model: str = "gemma4:e2b"
     embed_model: str = "BAAI/bge-small-en-v1.5"
 
     data_dir: Path = ROOT / "data"

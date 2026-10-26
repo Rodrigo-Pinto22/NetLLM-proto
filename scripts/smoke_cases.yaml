@@ -1,0 +1,97 @@
+# Cases for smoke_tool_calling.py. {pcap} is replaced by the trace path.
+# calls: the expected sequence. [] means no tool should be called.
+# also_ok: other acceptable sequences (e.g. either order for independent calls).
+# Expected args: strings match as case-insensitive substrings (filters have many valid spellings),
+# everything else by equality. pcap_path is always checked and does not need listing.
+cases:
+  # --- list_flows ----------------------------------------------------------------------
+  - id: flows-01
+    prompt: "What conversations are in {pcap}?"
+    calls: [{name: list_flows}]
+  - id: flows-02
+    prompt: "How many TCP connections are there in the capture {pcap}?"
+    calls: [{name: list_flows}]
+  - id: flows-03
+    prompt: "Which hosts are talking to each other in {pcap}, and how many bytes did they exchange?"
+    calls: [{name: list_flows}]
+
+  # --- packet_detail -------------------------------------------------------------------
+  - id: detail-01
+    prompt: "Show me every field of packet 4 in {pcap}."
+    calls: [{name: packet_detail, args: {number: 4}}]
+  - id: detail-02
+    prompt: "What is the IP TTL of frame 2 in {pcap}?"
+    calls: [{name: packet_detail, args: {number: 2}}]
+  - id: detail-03
+    prompt: "Decode frame 153 of {pcap} completely."
+    calls: [{name: packet_detail, args: {number: 153}}]
+  - id: detail-04
+    prompt: "In {pcap}, how long is the TCP header of the 9th packet?"
+    calls: [{name: packet_detail, args: {number: 9}}]
+
+  # --- apply_filter --------------------------------------------------------------------
+  - id: filter-01
+    prompt: "In {pcap}, which packets are TCP SYNs? Use a display filter."
+    calls: [{name: apply_filter, args: {display_filter: syn}}]
+  - id: filter-02
+    prompt: "Are there any retransmitted segments in {pcap}?"
+    calls: [{name: apply_filter, args: {display_filter: retransmission}}]
+  - id: filter-03
+    prompt: "List the packets sent by 128.119.245.12 in {pcap}."
+    calls: [{name: apply_filter, args: {display_filter: 128.119.245.12}}]
+  - id: filter-04
+    prompt: "Show only the HTTP packets in {pcap}."
+    calls: [{name: apply_filter, args: {display_filter: http}}]
+  - id: filter-05
+    prompt: "Which segments in {pcap} have the PSH flag set?"
+    calls: [{name: apply_filter, args: {display_filter: push}}]
+
+  # --- tcp_handshake -------------------------------------------------------------------
+  - id: handshake-01
+    prompt: "Show the three-way handshake of TCP stream 0 in {pcap}."
+    calls: [{name: tcp_handshake, args: {stream: 0}}]
+  - id: handshake-02
+    prompt: "What initial sequence numbers did the client and server pick in TCP stream 0 of {pcap}?"
+    calls: [{name: tcp_handshake, args: {stream: 0}}]
+  - id: handshake-03
+    prompt: "Did both sides of TCP stream 0 in {pcap} agree to use selective acknowledgments?"
+    calls: [{name: tcp_handshake, args: {stream: 0}}]
+  - id: handshake-04
+    prompt: "What window scale factor did the server announce in stream 0 of {pcap}?"
+    calls: [{name: tcp_handshake, args: {stream: 0}}]
+
+  # --- multi-step ----------------------------------------------------------------------
+  - id: multi-01
+    prompt: "Find the TCP connection to port 80 in {pcap} and show me its handshake."
+    calls: [{name: list_flows}, {name: tcp_handshake, args: {stream: 0}}]
+  - id: multi-02
+    prompt: "List the flows in {pcap}, then show all fields of packet 1."
+    calls: [{name: list_flows}, {name: packet_detail, args: {number: 1}}]
+  - id: multi-03
+    prompt: "In {pcap}, find the SYN packets with a display filter, then decode the first one in full."
+    calls: [{name: apply_filter, args: {display_filter: syn}}, {name: packet_detail, args: {number: 1}}]
+  - id: multi-04
+    prompt: "In {pcap}: are there retransmissions, and what fields does frame 4 have?"
+    calls: [{name: apply_filter, args: {display_filter: retransmission}}, {name: packet_detail, args: {number: 4}}]
+    also_ok:
+      - [{name: packet_detail, args: {number: 4}}, {name: apply_filter, args: {display_filter: retransmission}}]
+
+  # --- no tool needed ------------------------------------------------------------------
+  - id: none-01
+    prompt: "Why does TCP use a three-way handshake instead of a two-way one?"
+    calls: []
+  - id: none-02
+    prompt: "What is the difference between flow control and congestion control in TCP?"
+    calls: []
+  - id: none-03
+    prompt: "Explain TCP slow start in two sentences."
+    calls: []
+  - id: none-04
+    prompt: "How does TCP compute EstimatedRTT?"
+    calls: []
+  - id: none-05
+    prompt: "Hi! What kinds of things can you help me with?"
+    calls: []
+  - id: none-06
+    prompt: "I'm studying {pcap} for my lab. In general, what does the SYN flag mean?"
+    calls: []
