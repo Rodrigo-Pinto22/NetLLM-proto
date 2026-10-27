@@ -2,6 +2,7 @@ import asyncio
 import inspect
 
 import pytest
+from fastmcp import Client
 from ollama._utils import convert_function_to_tool
 
 from netllm.mcp_server import server
@@ -49,5 +50,19 @@ def test_mcp_server_builds():
 
 
 def test_mcp_server_exposes_all_tools():
-    listed = asyncio.run(server.list_tools())
-    assert {t.name for t in listed} == {fn.__name__ for fn in tools.TOOLS}
+    # In-memory client: goes through the MCP protocol, not just the server's registry.
+    async def list_names():
+        async with Client(server) as client:
+            return {t.name for t in await client.list_tools()}
+
+    assert asyncio.run(list_names()) == {fn.__name__ for fn in tools.TOOLS}
+
+
+def test_mcp_tool_descriptions_match_docstrings():
+    async def descriptions():
+        async with Client(server) as client:
+            return {t.name: t.description for t in await client.list_tools()}
+
+    got = asyncio.run(descriptions())
+    for fn in tools.TOOLS:
+        assert inspect.getdoc(fn).splitlines()[0] in got[fn.__name__]

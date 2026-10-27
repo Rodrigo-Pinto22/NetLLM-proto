@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from mcp.server.mcpserver import MCPServer
+from fastmcp import FastMCP
 
-from .pcap.tools import TOOLS
-
-server = MCPServer("netllm-pcap", instructions="Inspect PCAP files. Packet numbers are 1-based frame numbers.")
-for fn in TOOLS:
-    server.tool()(fn)
+from netllm.pcap.tools import TOOLS
+server = FastMCP(
+    "netllm-pcap",
+    instructions="Inspect PCAP files. Packet numbers are 1-based frame numbers.",
+    tools=TOOLS,
+)
 
 
 def main() -> None:
