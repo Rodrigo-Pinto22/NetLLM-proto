@@ -1,0 +1,162 @@
+# NetLLM local stack. Base for the IT-server deployment (SCRUM-54).
+#
+#   Full stack:   docker compose up -d --wait        (then `docker compose watch` for live code sync)
+#   Infra only:   docker compose up -d --wait postgres chroma   (app/mcp on the host with uv run)
+#   + GPU Ollama: add `--profile gpu`, and set OLLAMA_BASE_URL=http://ollama:11434 in .env
+#
+# All config comes from .env (see .env.example). This file holds no secrets: it only re-points
+# hostnames for containers (`environment:` wins over `env_file:`), so .env keeps localhost URLs
+# that work on the host. Host ports bind to 127.0.0.1 only.
+# Image tags must be pinned to digests before deployment (see README).
+
+name: netllm
+
+x-netllm-env: &netllm-env
+  NETLLM_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  NETLLM_CHROMA_HOST: chroma
+  NETLLM_CHROMA_PORT: "8000"
+  NETLLM_MCP_URL: http://mcp:8001/mcp
+  NETLLM_OLLAMA_HOST: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  NETLLM_DATA_DIR: /data
+  NETLLM_RUNS_DIR: /runs
+
+x-watch: &watch
+  - action: sync+restart
+    path: ./src
+    target: /app/src
+  - action: rebuild
+    path: pyproject.toml
+  - action: rebuild
+    path: uv.lock
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  flyway:
+    # One-shot: applies migrations/ to postgres, then exits. `app` waits for it to succeed.
+    # Mode A (code on the host): docker compose run --rm flyway
+    image: flyway/flyway:11
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_SCHEMAS: core,session
+      FLYWAY_DEFAULT_SCHEMA: core
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CONNECT_RETRIES: "10"
+      FLYWAY_CLEAN_DISABLED: "true"
+    volumes:
+      - ./migrations:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  chroma:
+    # Server version must match the chromadb client in uv.lock.
+    image: chromadb/chroma:1.5.9
+    volumes:
+      - chroma_data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      # The image has no curl/python; probe the port with bash.
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/8000' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  ollama:
+    profiles: [gpu]
+    image: ollama/ollama:0.12.6
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: .
+      target: mcp
+    env_file: .env
+    environment:
+      <<: *netllm-env
+      NETLLM_MCP_TRANSPORT: http
+      NETLLM_MCP_BIND_HOST: 0.0.0.0
+      NETLLM_MCP_PORT: "8001"
+    volumes:
+      - kb_docs:/data/kb_docs:ro
+      - sessions:/data/sessions
+    ports:
+      - "127.0.0.1:8001:8001"   # Goose on the host connects here
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      chroma:
+        condition: service_healthy
+    develop:
+      watch: *watch
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      target: app
+    env_file: .env
+    environment: *netllm-env
+    volumes:
+      - kb_docs:/data/kb_docs:ro
+      - sessions:/data/sessions
+      - runs:/runs
+    ports:
+      - "127.0.0.1:8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+      chroma:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+    develop:
+      watch: *watch
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  chroma_data:
+  ollama_models:
+  kb_docs:
+  sessions:
+  runs:

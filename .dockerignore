@@ -1,0 +1,17 @@
+# Keep the build context to code + lockfile. Never send local data, secrets or envs.
+.git
+.venv
+.env
+.env.*
+!.env.example
+data/
+runs/
+notebooks/
+tests/
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.pcap
+*.pcapng
