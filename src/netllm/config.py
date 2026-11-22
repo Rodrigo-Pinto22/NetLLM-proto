@@ -27,6 +27,17 @@ class Settings(BaseSettings):
     chat_model: str = "gemma4:e2b"
     embed_model: str = "BAAI/bge-small-en-v1.5"
 
+    # Services. Defaults (and .env) use localhost, for running on the host; compose.yaml overrides
+    # the hostnames for containers, so both dev modes share one .env.
+    database_url: str = "postgresql://netllm@localhost:5432/netllm"
+    chroma_host: str = "localhost"
+    chroma_port: int = 8000
+    mcp_url: str = "http://localhost:8001/mcp"  # where clients (app, Goose) reach the MCP server
+    mcp_transport: Literal["stdio", "http"] = "stdio"  # how netllm-mcp serves
+    mcp_bind_host: str = "127.0.0.1"
+    mcp_port: int = 8001
+    pcap_backend: Literal["pyshark", "stub"] = "pyshark"
+
     data_dir: Path = ROOT / "data"
     runs_dir: Path = ROOT / "runs"
     profiles_dir: Path = ROOT / "configs" / "profiles"
@@ -36,6 +47,10 @@ class Settings(BaseSettings):
     @property
     def kb_docs_dir(self) -> Path:
         return self.data_dir / "kb_docs"
+
+    @property
+    def sessions_dir(self) -> Path:
+        return self.data_dir / "sessions"
 
     @property
     def chroma_dir(self) -> Path:
