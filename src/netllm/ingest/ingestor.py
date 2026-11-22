@@ -9,6 +9,7 @@ Every chunk is stamped with a scope:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -44,11 +45,15 @@ class Ingestor:
 
     def ingest(self, path: str | Path, scope: Scope = "admin") -> list[Chunk]:
         """A file on disk: a textbook offline, or a user upload at runtime."""
-        return self._process(self.load(path), scope)
+        path = Path(path)
+        doc = self.load(path)
+        doc.metadata["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        return self._process(doc, scope)
 
     def ingest_text(self, text: str, source: str = "user_input", scope: Scope = "session") -> list[Chunk]:
         """Raw text pasted into the chat at runtime."""
-        return self._process(Document(source, [Page(text, 1)]), scope)
+        sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        return self._process(Document(source, [Page(text, 1)], {"sha256": sha}), scope)
 
     def ingest_dir(self, folder: str | Path, scope: Scope = "admin") -> list[Chunk]:
         chunks: list[Chunk] = []
@@ -60,8 +65,12 @@ class Ingestor:
     def _process(self, doc: Document, scope: Scope) -> list[Chunk]:
         doc = self.cleaner.clean(doc)
         chunks = self.chunker.chunk(doc, self.splitter.split(doc))
+        # Provenance: with source/section/page/part from the chunker, enough to cite a chunk and to
+        # tell which exact file version it came from (sha256 of the raw bytes or pasted text).
         for c in chunks:
             c.metadata["scope"] = scope
+            if "sha256" in doc.metadata:
+                c.metadata["source_sha256"] = doc.metadata["sha256"]
         return chunks
 
 

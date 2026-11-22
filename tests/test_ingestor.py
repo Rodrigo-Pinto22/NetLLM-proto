@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 import pytest
@@ -62,9 +63,20 @@ def test_ingest_markdown_file_end_to_end(ing, tmp_path):
 
 
 def test_ingest_text(ing):
-    chunks = ing.ingest_text(f"# Pasted\n{words(5)}", source="chat")
+    text = f"# Pasted\n{words(5)}"
+    chunks = ing.ingest_text(text, source="chat")
     assert len(chunks) == 1
-    assert chunks[0].metadata == {"source": "chat", "section": "Pasted", "page": 1, "part": 0, "scope": "session"}
+    assert chunks[0].metadata == {
+        "source": "chat", "section": "Pasted", "page": 1, "part": 0, "scope": "session",
+        "source_sha256": hashlib.sha256(text.encode()).hexdigest(),
+    }
+
+
+def test_ingest_stamps_file_sha256(ing, tmp_path):
+    f = tmp_path / "notes.md"
+    f.write_text(f"# Notes\n{words(5)}", encoding="utf-8")
+    expected = hashlib.sha256(f.read_bytes()).hexdigest()
+    assert {c.metadata["source_sha256"] for c in ing.ingest(f)} == {expected}
 
 
 def test_ingest_stamps_scope(ing, tmp_path):

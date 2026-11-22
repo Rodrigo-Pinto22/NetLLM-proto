@@ -17,7 +17,7 @@ from importlib.metadata import version
 
 from fastapi import FastAPI
 
-from .routes import health_controller, smoke_controller
+from .routes import health_controller, session_controller, smoke_controller
 
 
 def create_app() -> FastAPI:
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_controller.router)
     app.include_router(smoke_controller.router)
+    app.include_router(session_controller.router)
     return app
 
 

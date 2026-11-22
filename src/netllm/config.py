@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://netllm@localhost:5432/netllm"
     chroma_host: str = "localhost"
     chroma_port: int = 8000
+    # Admin KB collection. Becomes kb_admin_<kb_version> once KB manifests exist (docs/storage.md §4).
+    kb_admin_collection: str = "kb_admin"
+    max_upload_bytes: int = 20 * 1024 * 1024  # learner uploads; larger files are rejected (413)
     mcp_url: str = "http://localhost:8001/mcp"  # where clients (app, Goose) reach the MCP server
     mcp_transport: Literal["stdio", "http"] = "stdio"  # how netllm-mcp serves
     mcp_bind_host: str = "127.0.0.1"
