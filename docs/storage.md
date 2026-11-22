@@ -44,7 +44,8 @@ The relational store is **PostgreSQL**, running locally (for example in a contai
 through a `NETLLM_DATABASE_URL` DSN in `.env`. It provides real foreign keys with
 `ON DELETE CASCADE` (which `purge_session` relies on), `JSONB` for flexible metadata, `timestamptz`
 for expiry, and concurrent access when several sessions or a web UI run at once. Schema changes are
-versioned migrations (Alembic). See [ADR 0005](adr/0005-postgresql-relational-store.md).
+versioned SQL migrations run by Flyway (`migrations/`). See
+[ADR 0005](adr/0005-postgresql-relational-store.md) and [ADR 0010](adr/0010-flyway-migrations.md).
 
 Tables are split into two schemas so that backups follow §2:
 
