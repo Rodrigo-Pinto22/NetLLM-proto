@@ -1,55 +1,34 @@
-"""Tutor API. For now only health and a stack smoke test; the agent loop comes later.
+"""Creates the FastAPI application and plugs in the routers. No endpoints or logic here.
+
+Layers (like controller / DTO / service elsewhere):
+  routes/    endpoints: parse the request, call a service, return a schema
+  schemas/   request/response models (DTOs); they become the OpenAPI contract
+  services/  the actual work; no HTTP concepts in here
+
+The contract is generated from this code and committed as docs/api/openapi.yaml
+(regenerate with: uv run python scripts/export_openapi.py; tests fail if it is stale).
 
 Run: uvicorn netllm.api.app:app --port 8080
 """
 
 from __future__ import annotations
 
-import asyncio
+from importlib.metadata import version
 
-import chromadb
-import psycopg
 from fastapi import FastAPI
-from fastmcp import Client
-from psycopg.types.json import Jsonb
 
-from netllm.config import get_settings
-
-app = FastAPI(title="NetLLM")
+from .routes import health, smoke
 
 
-@app.get("/health")
-def health() -> dict:
-    """Liveness only: the process is up. Dependencies are checked by /smoke."""
-    return {"status": "ok"}
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="NetLLM",
+        version=version("netllm-proto"),
+        description="Local networking tutor API.",
+    )
+    app.include_router(health.router)
+    app.include_router(smoke.router)
+    return app
 
 
-@app.post("/smoke")
-async def smoke() -> dict:
-    """End-to-end check: call a tool on mcp, write a trace event to postgres, query chroma."""
-    s = get_settings()
-
-    args = {"pcap_path": "stub.pcap", "limit": 3}
-    async with Client(s.mcp_url) as mcp:
-        result = await mcp.call_tool("list_flows", args)
-    flows = getattr(result, "structured_content", None)
-
-    async with await psycopg.AsyncConnection.connect(s.database_url) as conn:
-        cur = await conn.execute(
-            "INSERT INTO session.trace_events (kind, payload) VALUES (%s, %s) RETURNING id",
-            ("tool_call", Jsonb({"tool": "list_flows", "args": args, "ok": flows is not None})),
-        )
-        row = await cur.fetchone()
-
-    chroma = await asyncio.to_thread(_chroma_roundtrip, s.chroma_host, s.chroma_port)
-
-    return {"mcp": flows, "trace_event_id": row[0] if row else None, "chroma": chroma}
-
-
-def _chroma_roundtrip(host: str, port: int) -> dict:
-    # Explicit embeddings and no embedding function, so the smoke test needs no embedding model.
-    client = chromadb.HttpClient(host=host, port=port)
-    col = client.get_or_create_collection("netllm_smoke", embedding_function=None)
-    col.upsert(ids=["smoke"], embeddings=[[1.0, 0.0, 0.0]], documents=["smoke"])
-    hit = col.query(query_embeddings=[[1.0, 0.0, 0.0]], n_results=1)
-    return {"heartbeat": client.heartbeat(), "top_id": hit["ids"][0][0]}
+app = create_app()

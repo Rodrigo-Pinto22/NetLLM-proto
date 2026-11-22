@@ -93,6 +93,19 @@ Containers reach Ollama through `OLLAMA_BASE_URL`. By default that is Ollama on 
 `OLLAMA_BASE_URL=http://ollama:11434` in `.env`. Pull models into the container with
 `docker compose exec ollama ollama pull <model>`.
 
+### API contract
+
+The API is code-first: routes and pydantic schemas in `src/netllm/api/` generate the OpenAPI
+contract, which is committed as `docs/api/openapi.yaml`. After changing an endpoint or schema:
+
+```bash
+uv run python scripts/export_openapi.py   # regenerate the contract, then commit it
+```
+
+`tests/test_openapi.py` fails if the committed contract is out of date, so every API change
+shows up in the pull-request diff. With the app running, the interactive docs are at
+`http://localhost:8080/docs`.
+
 ### Goose
 
 Goose connects to the same MCP server over HTTP. Run `goose configure`, choose Add Extension →
@@ -131,7 +144,8 @@ weights, KB documents or student data into images.
 | `src/netllm/pcap/`         | Backend interface, pyshark backend, output schemas, tools     |
 | `src/netllm/mcp_server.py` | MCP server exposing the pcap tools                            |
 | `src/netllm/memory/`       | Session history, fact store                                   |
-| `src/netllm/api/`          | Tutor HTTP API (FastAPI); `/smoke` checks the whole stack     |
+| `src/netllm/api/`          | Tutor HTTP API (FastAPI): `routes/` (endpoints), `schemas/` (DTOs), `services/` (logic) |
+| `docs/api/openapi.yaml`    | API contract, generated from the code (`scripts/export_openapi.py`) |
 | `migrations/`              | Flyway SQL migrations (PostgreSQL schemas `core` / `session`) |
 | `compose.yaml`, `Dockerfile` | Local stack; base for deployment                            |
 | `src/netllm/agent/`        | Agent loop, answer contract, claim check, trace               |
