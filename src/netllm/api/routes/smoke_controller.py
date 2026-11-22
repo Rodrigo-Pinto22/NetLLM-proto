@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from netllm.config import Settings, get_settings
 
-from ..schemas.smoke import SmokeResult
+from ..schemas.smoke_dto import SmokeResult
 from ..services.smoke import run_smoke
 
 router = APIRouter(tags=["ops"])

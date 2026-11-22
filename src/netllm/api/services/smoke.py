@@ -11,7 +11,7 @@ from psycopg.types.json import Jsonb
 
 from netllm.config import Settings
 
-from ..schemas.smoke import ChromaCheck, SmokeResult
+from ..schemas.smoke_dto import ChromaCheck, SmokeResult
 
 
 async def run_smoke(s: Settings) -> SmokeResult:

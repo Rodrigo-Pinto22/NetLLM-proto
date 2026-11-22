@@ -144,7 +144,7 @@ weights, KB documents or student data into images.
 | `src/netllm/pcap/`         | Backend interface, pyshark backend, output schemas, tools     |
 | `src/netllm/mcp_server.py` | MCP server exposing the pcap tools                            |
 | `src/netllm/memory/`       | Session history, fact store                                   |
-| `src/netllm/api/`          | Tutor HTTP API (FastAPI): `routes/` (endpoints), `schemas/` (DTOs), `services/` (logic) |
+| `src/netllm/api/`          | Tutor HTTP API (FastAPI): `routes/*_controller.py`, `schemas/*_dto.py`, `services/*.py` |
 | `docs/api/openapi.yaml`    | API contract, generated from the code (`scripts/export_openapi.py`) |
 | `migrations/`              | Flyway SQL migrations (PostgreSQL schemas `core` / `session`) |
 | `compose.yaml`, `Dockerfile` | Local stack; base for deployment                            |

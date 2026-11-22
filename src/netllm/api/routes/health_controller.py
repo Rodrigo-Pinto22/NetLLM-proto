@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from ..schemas.health import HealthResponse
+from ..schemas.health_dto import HealthResponse
 
 router = APIRouter(tags=["ops"])
 
