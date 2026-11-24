@@ -12,16 +12,17 @@ from functools import lru_cache
 from netllm.config import get_settings
 
 from .backend import PcapBackend
-from .pyshark_backend import PysharkBackend
 from .stub_backend import StubBackend
+from .tshark_backend import TsharkBackend
 
 
 @lru_cache(maxsize=8)
 def _backend(pcap_path: str) -> PcapBackend:
-    # NETLLM_PCAP_BACKEND=stub serves fixed outputs (no tshark, no file) until pyshark is implemented.
-    if get_settings().pcap_backend == "stub":
+    # NETLLM_PCAP_BACKEND=stub serves fixed outputs (no tshark, no file), for smoke tests.
+    s = get_settings()
+    if s.pcap_backend == "stub":
         return StubBackend(pcap_path)
-    return PysharkBackend(pcap_path)
+    return TsharkBackend(pcap_path, tshark=s.tshark_path)
 
 
 def list_flows(pcap_path: str, limit: int = 50) -> dict:

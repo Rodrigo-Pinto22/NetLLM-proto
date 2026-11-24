@@ -15,7 +15,6 @@ dependencies = [
     "pydantic>=2.13.5",
     "pydantic-settings>=2.16.1",
     "pymupdf4llm>=1.28.2,<2",
-    "pyshark>=0.6",
     "pyyaml>=6.0.3",
     "sentence-transformers>=6.2.0",
     "transformers>=5.20.2",
@@ -30,6 +29,7 @@ dev = [
 
 [project.scripts]
 netllm-mcp = "netllm.mcp_server:main"
+netllm-domain = "netllm.domain:main"
 
 [build-system]
 requires = ["hatchling"]

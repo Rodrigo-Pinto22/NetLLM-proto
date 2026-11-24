@@ -39,11 +39,13 @@ class Settings(BaseSettings):
     mcp_transport: Literal["stdio", "http"] = "stdio"  # how netllm-mcp serves
     mcp_bind_host: str = "127.0.0.1"
     mcp_port: int = 8001
-    pcap_backend: Literal["pyshark", "stub"] = "pyshark"
+    pcap_backend: Literal["tshark", "stub"] = "tshark"
+    tshark_path: str = "tshark"  # name on PATH or full path to the tshark binary
 
     data_dir: Path = ROOT / "data"
     runs_dir: Path = ROOT / "runs"
     profiles_dir: Path = ROOT / "configs" / "profiles"
+    domain_file: Path = ROOT / "configs" / "domain.yaml"  # labs and steps (netllm.domain)
     questions_dir: Path = ROOT / "questions"
     profile: str = "beginner_socratic"
 

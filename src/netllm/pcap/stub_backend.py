@@ -1,7 +1,7 @@
 """PcapBackend with fixed outputs, for tool-calling smoke tests: no tshark, no file needed.
 
 Values come from tcp-wireshark-trace1-1 (Kurose-Ross TCP lab), so follow-up answers stay plausible.
-Outputs are built from the real schemas, so they match what the pyshark backend will return.
+Outputs are built from the real schemas, so they have the same shape as the tshark backend's.
 """
 
 from __future__ import annotations

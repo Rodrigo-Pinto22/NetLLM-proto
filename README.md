@@ -7,7 +7,7 @@ socratic or direct). Everything runs locally via Ollama.
 ## Requirements
 
 - **Python 3.14** and [uv](https://docs.astral.sh/uv/)
-- **tshark** (Wireshark CLI), used by pyshark to decode captures
+- **tshark** (Wireshark CLI), called by the pcap tools to decode captures
   - Ubuntu/Debian: `sudo apt install tshark` (answer _yes_ to allow non-root capture, or skip if you only read files)
   - macOS: `brew install wireshark`
   - check: `tshark --version`
@@ -141,7 +141,7 @@ weights, KB documents or student data into images.
 | `src/netllm/config.py`     | Settings from `.env` + profile loader                         |
 | `src/netllm/ingest/`       | PDF/Markdown/text → cleaned, section-aware chunks, with scope |
 | `src/netllm/kb/`           | Chroma wrapper, KB manifest/versioning                        |
-| `src/netllm/pcap/`         | Backend interface, pyshark backend, output schemas, tools     |
+| `src/netllm/pcap/`         | Backend interface, tshark backend, output schemas, tools      |
 | `src/netllm/mcp_server.py` | MCP server exposing the pcap tools                            |
 | `src/netllm/memory/`       | Session history, fact store                                   |
 | `src/netllm/api/`          | Tutor HTTP API (FastAPI): `routes/*_controller.py`, `schemas/*_dto.py`, `services/*.py` |

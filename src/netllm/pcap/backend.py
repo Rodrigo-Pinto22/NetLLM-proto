@@ -1,4 +1,4 @@
-"""PcapBackend: the only thing tools.py knows about. Swap pyshark for scapy/tshark-json without touching tools."""
+"""PcapBackend: the only thing tools.py knows about. Swap tshark for another decoder without touching tools."""
 
 from __future__ import annotations
 
