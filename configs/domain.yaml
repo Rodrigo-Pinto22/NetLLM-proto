@@ -1,0 +1,30 @@
+# Course domain: labs and their steps. Source of truth for core.labs / core.lab_steps.
+# Load into Postgres with:  uv run netllm-domain
+#
+# Rules (checked by the loader):
+#   - ids are lowercase slugs: letters, digits, '-' and '.'
+#   - a step id starts with its lab id plus a dot, e.g. lab3-tcp.s1
+#   - step order = order in this file (no numbers to keep in sync)
+#   - expected_outcome is for the tutor's policy only; it is never shown to students
+#
+# PLACEHOLDER content for iteration 1: replace with the real course labs.
+
+labs:
+  - id: lab3-tcp
+    title: "Lab 3 - TCP connection analysis"
+    steps:
+      - id: lab3-tcp.s1
+        goal: "Find the TCP three-way handshake that opens the connection to the web server."
+        expected_outcome: >-
+          Three packets between client and server: SYN (client -> server), SYN-ACK
+          (server -> client), ACK (client -> server). Display filter: tcp.flags.syn == 1.
+      - id: lab3-tcp.s2
+        goal: "Identify the initial sequence numbers chosen by the client and by the server."
+        expected_outcome: >-
+          Raw seq of the SYN is the client ISN; raw seq of the SYN-ACK is the server ISN.
+          The SYN-ACK acknowledges client ISN + 1. Wireshark shows relative seq 0 for both.
+      - id: lab3-tcp.s3
+        goal: "Find how the connection is closed and which side starts the close."
+        expected_outcome: >-
+          A FIN (or FIN-ACK) from one side, acknowledged, then a FIN from the other side,
+          acknowledged; or a RST if the connection was aborted.
