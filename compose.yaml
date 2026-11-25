@@ -117,6 +117,7 @@ services:
     volumes:
       - kb_docs:/data/kb_docs:ro
       - sessions:/data/sessions
+      - ./data/traces:/data/traces:ro   # capture files named in configs/captures.yaml
     ports:
       - "127.0.0.1:8001:8001"   # Goose on the host connects here
     extra_hosts:

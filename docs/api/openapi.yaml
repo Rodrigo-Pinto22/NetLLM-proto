@@ -171,6 +171,31 @@ components:
       required:
       - file
       title: Body_upload_sessions__session_id__uploads_post
+    CaptureInfo:
+      properties:
+        id:
+          type: string
+          title: Id
+          description: Value to pass as `capture` to the other tools
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+      - id
+      - description
+      title: CaptureInfo
+    CaptureList:
+      properties:
+        captures:
+          items:
+            $ref: '#/components/schemas/CaptureInfo'
+          type: array
+          title: Captures
+      type: object
+      required:
+      - captures
+      title: CaptureList
     ChromaCheck:
       properties:
         heartbeat:
@@ -199,78 +224,6 @@ components:
             Defaults to NETLLM_PROFILE.
       type: object
       title: CreateSessionRequest
-    Flow:
-      properties:
-        flow_id:
-          type: integer
-          title: Flow Id
-          description: Stable within one capture, e.g. tcp.stream / udp.stream
-        protocol:
-          type: string
-          title: Protocol
-          description: 'Transport protocol: TCP, UDP, ...'
-        src:
-          type: string
-          title: Src
-        src_port:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Src Port
-        dst:
-          type: string
-          title: Dst
-        dst_port:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Dst Port
-        packets:
-          type: integer
-          title: Packets
-        bytes:
-          type: integer
-          title: Bytes
-        first_packet:
-          type: integer
-          title: First Packet
-        start_rel_ts:
-          type: number
-          title: Start Rel Ts
-        duration:
-          type: number
-          title: Duration
-      type: object
-      required:
-      - flow_id
-      - protocol
-      - src
-      - dst
-      - packets
-      - bytes
-      - first_packet
-      - start_rel_ts
-      - duration
-      title: Flow
-    FlowList:
-      properties:
-        flows:
-          items:
-            $ref: '#/components/schemas/Flow'
-          type: array
-          title: Flows
-        total:
-          type: integer
-          title: Total
-        truncated:
-          type: boolean
-          title: Truncated
-      type: object
-      required:
-      - flows
-      - total
-      - truncated
-      title: FlowList
     HTTPValidationError:
       properties:
         detail:
@@ -420,9 +373,9 @@ components:
       properties:
         mcp:
           anyOf:
-          - $ref: '#/components/schemas/FlowList'
+          - $ref: '#/components/schemas/CaptureList'
           - type: 'null'
-          description: Result of the list_flows tool called on the mcp service
+          description: Result of the list_captures tool called on the mcp service
         trace_event_id:
           anyOf:
           - type: integer

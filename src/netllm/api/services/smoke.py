@@ -15,20 +15,19 @@ from ..schemas.smoke_dto import ChromaCheck, SmokeResult
 
 
 async def run_smoke(s: Settings) -> SmokeResult:
-    args = {"pcap_path": "stub.pcap", "limit": 3}
     async with Client(s.mcp_url) as mcp:
-        result = await mcp.call_tool("list_flows", args)
-    flows = getattr(result, "structured_content", None)
+        result = await mcp.call_tool("list_captures", {})
+    captures = getattr(result, "structured_content", None)
 
     async with await psycopg.AsyncConnection.connect(s.database_url) as conn:
         cur = await conn.execute(
             "INSERT INTO session.trace_events (kind, payload) VALUES (%s, %s) RETURNING id",
-            ("tool_call", Jsonb({"tool": "list_flows", "args": args, "ok": flows is not None})),
+            ("tool_call", Jsonb({"tool": "list_captures", "args": {}, "ok": captures is not None})),
         )
         row = await cur.fetchone()
 
     chroma = await asyncio.to_thread(_chroma_roundtrip, s.chroma_host, s.chroma_port)
-    return SmokeResult(mcp=flows, trace_event_id=row[0] if row else None, chroma=chroma)
+    return SmokeResult(mcp=captures, trace_event_id=row[0] if row else None, chroma=chroma)
 
 
 def _chroma_roundtrip(host: str, port: int) -> ChromaCheck:

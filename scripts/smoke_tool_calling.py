@@ -35,7 +35,7 @@ from netllm.config import get_settings
 from netllm.pcap import tools
 from netllm.pcap.stub_backend import StubBackend
 
-PCAP = "data/traces/tcp-wireshark-trace1-1.pcapng"
+CAPTURE = "tcp-trace1"  # configs/captures.yaml
 CASES = Path(__file__).with_name("smoke_cases.yaml")
 SYSTEM = (
     "You are a networking tutor. When a question is about a specific capture file, inspect it with "
@@ -43,8 +43,9 @@ SYSTEM = (
 )
 
 _stub = StubBackend()
-tools._backend = lambda pcap_path: _stub  # real tool wrappers, fixed outputs
-TOOL_BY_NAME = {fn.__name__: pydantic.validate_call(fn) for fn in tools.TOOLS}
+tools._backend = lambda capture: _stub  # real tool wrappers, fixed outputs
+TOOLS = tools.PCAP_TOOLS  # the prompts name the capture, so list_captures is left out
+TOOL_BY_NAME = {fn.__name__: pydantic.validate_call(fn) for fn in TOOLS}
 METRICS = ["selected", "args_valid", "args_correct", "count_ok", "no_tool_ok", "passed"]
 
 
@@ -65,7 +66,7 @@ def run_trial(client: ollama.Client, model: str, prompt: str, think: bool | None
     start = time.perf_counter()
     try:
         for _ in range(max_steps):
-            resp = client.chat(model=model, messages=messages, tools=tools.TOOLS, think=think,
+            resp = client.chat(model=model, messages=messages, tools=TOOLS, think=think,
                                options={"temperature": 0.2})
             messages.append(resp.message)
             if not resp.message.tool_calls:
@@ -89,7 +90,7 @@ def arg_matches(got, want) -> bool:
 
 
 def call_matches(call: dict, want: dict) -> bool:
-    expected = {"pcap_path": PCAP, **want.get("args", {})}
+    expected = {"capture": CAPTURE, **want.get("args", {})}
     return call["name"] == want["name"] and all(arg_matches(call["args"].get(k), v) for k, v in expected.items())
 
 
@@ -160,7 +161,7 @@ def main() -> int:
     run_dir.mkdir(parents=True)
     meta = {"models": args.models, "trials": args.trials, "think": args.think, "max_steps": args.max_steps,
             "host": args.host, "cases": str(args.cases), "n_cases": len(cases), "system": SYSTEM,
-            "tools": [fn.__name__ for fn in tools.TOOLS]}
+            "tools": [fn.__name__ for fn in TOOLS]}
     (run_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
     rows = []
@@ -168,7 +169,7 @@ def main() -> int:
         for model in args.models:
             for case in cases:
                 for t in range(args.trials):
-                    trial = run_trial(client, model, case["prompt"].format(pcap=PCAP), think, args.max_steps)
+                    trial = run_trial(client, model, case["prompt"].format(capture=CAPTURE), think, args.max_steps)
                     row = {"model": model, "case": case["id"], "trial": t + 1, **trial,
                            "metrics": score(case, trial)}
                     rows.append(row)

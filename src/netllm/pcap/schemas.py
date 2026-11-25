@@ -12,6 +12,15 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class CaptureInfo(BaseModel):
+    id: str = Field(description="Value to pass as `capture` to the other tools")
+    description: str
+
+
+class CaptureList(BaseModel):
+    captures: list[CaptureInfo]
+
+
 class Flow(BaseModel):
     flow_id: int = Field(description="Stable within one capture, e.g. tcp.stream / udp.stream")
     protocol: str = Field(description="Transport protocol: TCP, UDP, ...")

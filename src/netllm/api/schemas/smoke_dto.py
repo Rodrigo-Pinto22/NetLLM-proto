@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from netllm.pcap.schemas import FlowList
+from netllm.pcap.schemas import CaptureList
 
 
 class ChromaCheck(BaseModel):
@@ -11,6 +11,6 @@ class ChromaCheck(BaseModel):
 
 
 class SmokeResult(BaseModel):
-    mcp: FlowList | None = Field(description="Result of the list_flows tool called on the mcp service")
+    mcp: CaptureList | None = Field(description="Result of the list_captures tool called on the mcp service")
     trace_event_id: int | None = Field(description="Id of the row written to session.trace_events")
     chroma: ChromaCheck

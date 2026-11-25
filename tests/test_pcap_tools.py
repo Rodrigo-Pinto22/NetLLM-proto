@@ -18,14 +18,14 @@ def test_tools_have_docstrings():
 @pytest.mark.parametrize("fn", tools.TOOLS, ids=lambda fn: fn.__name__)
 def test_every_argument_is_described(fn):
     # Ollama takes argument descriptions from the docstring's Args: section.
-    params = convert_function_to_tool(fn).function.parameters.properties
+    params = convert_function_to_tool(fn).function.parameters.properties or {}
     assert set(params) == set(inspect.signature(fn).parameters)
     assert all(p.description.strip() for p in params.values())
 
 
-@pytest.mark.parametrize("fn", tools.TOOLS, ids=lambda fn: fn.__name__)
+@pytest.mark.parametrize("fn", tools.PCAP_TOOLS, ids=lambda fn: fn.__name__)
 def test_tool_matches_backend_method(fn):
-    # Each tool is a thin wrapper: same name and arguments as the backend, minus pcap_path.
+    # Each pcap tool is a thin wrapper: same name and arguments as the backend, minus capture.
     method = getattr(PcapBackend, fn.__name__)
     assert fn.__name__ in PcapBackend.__abstractmethods__
     tool_args = list(inspect.signature(fn).parameters)[1:]
@@ -38,9 +38,9 @@ def test_stub_backend_serves_every_tool(monkeypatch):
     from netllm.pcap.stub_backend import StubBackend
 
     stub = StubBackend()
-    monkeypatch.setattr(tools, "_backend", lambda pcap_path: stub)
-    sample = {"pcap_path": "x.pcap", "limit": 5, "number": 1, "display_filter": "tcp", "stream": 0}
-    for fn in tools.TOOLS:
+    monkeypatch.setattr(tools, "_backend", lambda capture: stub)
+    sample = {"capture": "x", "limit": 5, "number": 1, "display_filter": "tcp", "stream": 0}
+    for fn in tools.PCAP_TOOLS:
         out = fn(**{k: sample[k] for k in inspect.signature(fn).parameters})
         assert isinstance(out, dict) and out
 

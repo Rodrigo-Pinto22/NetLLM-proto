@@ -1,0 +1,15 @@
+# Packet captures the pcap tools may open (ADR 0013). The model refers to them by id only.
+# file:   path relative to the captures folder (data/traces/; not in git, copy the files there)
+# sha256: pins the exact file (`sha256sum <file>`); a different file is refused, so experiments
+#         are reproducible. Optional, but keep it for anything used in evaluation.
+# description: shown to the model by list_captures. Say what the capture is about, never facts
+#         that questions ask for (addresses, ports, numbers), or evaluation answers leak.
+
+captures:
+  - id: tcp-trace1
+    file: tcp-wireshark-trace1-1.pcapng
+    sha256: 164d5e3b3d2a25edb2ab6c57292e883c9c29123d4c18b2f5872a929f724559b3
+    description: >-
+      Kurose-Ross Wireshark TCP lab trace: a client uploads a text file to a web server
+      with an HTTP POST.
+    # Source: http://gaia.cs.umass.edu/wireshark-labs/wireshark-traces-9e.zip

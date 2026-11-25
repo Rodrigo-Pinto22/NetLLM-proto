@@ -48,6 +48,7 @@ RUN echo "wireshark-common wireshark-common/install-setuid boolean false" | debc
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tshark \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build --chown=netllm:netllm /app /app
+COPY --chown=netllm:netllm configs ./configs
 USER netllm
 ENV NETLLM_MCP_TRANSPORT=http NETLLM_MCP_BIND_HOST=0.0.0.0 NETLLM_MCP_PORT=8001
 EXPOSE 8001

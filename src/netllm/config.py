@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     runs_dir: Path = ROOT / "runs"
     profiles_dir: Path = ROOT / "configs" / "profiles"
     domain_file: Path = ROOT / "configs" / "domain.yaml"  # labs and steps (netllm.domain)
+    captures_file: Path = ROOT / "configs" / "captures.yaml"  # capture ids the pcap tools accept
     questions_dir: Path = ROOT / "questions"
     profile: str = "beginner_socratic"
 
@@ -60,6 +61,11 @@ class Settings(BaseSettings):
     @property
     def chroma_dir(self) -> Path:
         return self.data_dir / "chroma"
+
+    @property
+    def captures_dir(self) -> Path:
+        """Packet captures named in captures.yaml (the Kurose-Ross 'traces')."""
+        return self.data_dir / "traces"
 
     @property
     def traces_dir(self) -> Path:
