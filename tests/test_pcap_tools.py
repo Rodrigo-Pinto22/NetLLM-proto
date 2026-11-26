@@ -5,7 +5,7 @@ import pytest
 from fastmcp import Client
 from ollama._utils import convert_function_to_tool
 
-from netllm.mcp_server import server
+from netllm.mcp_server import ALL_TOOLS, server
 from netllm.pcap import tools
 from netllm.pcap.backend import PcapBackend
 
@@ -55,7 +55,7 @@ def test_mcp_server_exposes_all_tools():
         async with Client(server) as client:
             return {t.name for t in await client.list_tools()}
 
-    assert asyncio.run(list_names()) == {fn.__name__ for fn in tools.TOOLS}
+    assert asyncio.run(list_names()) == {fn.__name__ for fn in ALL_TOOLS}
 
 
 def test_mcp_tool_descriptions_match_docstrings():
@@ -64,5 +64,5 @@ def test_mcp_tool_descriptions_match_docstrings():
             return {t.name: t.description for t in await client.list_tools()}
 
     got = asyncio.run(descriptions())
-    for fn in tools.TOOLS:
+    for fn in ALL_TOOLS:
         assert inspect.getdoc(fn).splitlines()[0] in got[fn.__name__]

@@ -30,6 +30,7 @@ dev = [
 [project.scripts]
 netllm-mcp = "netllm.mcp_server:main"
 netllm-domain = "netllm.domain:main"
+netllm-kb = "netllm.kb.store:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,4 +1,4 @@
-"""Exposes the pcap tools over MCP, for Goose and for the own agent loop.
+"""Exposes the pcap and knowledge-base tools over MCP, for Goose and for the own agent loop.
 
 Transport comes from settings: stdio (default, a client spawns the process) or http (the `mcp`
 compose service; clients connect to NETLLM_MCP_URL, i.e. http://<host>:<port>/mcp).
@@ -11,12 +11,16 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
 from netllm.config import get_settings
-from netllm.pcap.tools import TOOLS
+from netllm.kb.tools import KB_TOOLS
+from netllm.pcap import tools as pcap_tools
+
+ALL_TOOLS = [*pcap_tools.TOOLS, *KB_TOOLS]
 
 server = FastMCP(
-    "netllm-pcap",
-    instructions="Inspect PCAP files. Packet numbers are 1-based frame numbers.",
-    tools=TOOLS,
+    "netllm",
+    instructions="Inspect packet captures (packet numbers are 1-based frame numbers) and search the "
+                 "course material.",
+    tools=ALL_TOOLS,
 )
 
 
