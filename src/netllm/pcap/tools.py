@@ -82,6 +82,41 @@ def tcp_handshake(capture: str, stream: int) -> dict:
     return _backend(capture).tcp_handshake(stream).model_dump()
 
 
+def tcp_segments(capture: str, stream: int, direction: str = "auto", limit: int = 50) -> dict:
+    """List the data segments of one TCP connection with the ACK that covers each, its sample RTT and how many bytes that ACK acknowledged.
+
+    Args:
+        capture: Capture id, as returned by list_captures (e.g. 'tcp-trace1').
+        stream: TCP stream index (tcp.stream), as returned in flow_id by list_flows.
+        direction: Whose data segments: 'client', 'server', or 'auto' (the side that sent more data).
+        limit: Maximum number of segments to return, from the start of the connection.
+    """
+    return _backend(capture).tcp_segments(stream, direction, limit).model_dump()
+
+
+def tcp_stream_stats(capture: str, stream: int) -> dict:
+    """Summarise one TCP connection per direction: payload bytes, throughput, retransmissions, duplicate ACKs, MSS, min/max receive window.
+
+    Args:
+        capture: Capture id, as returned by list_captures (e.g. 'tcp-trace1').
+        stream: TCP stream index (tcp.stream), as returned in flow_id by list_flows.
+    """
+    return _backend(capture).tcp_stream_stats(stream).model_dump()
+
+
+def tcp_fleets(capture: str, stream: int, direction: str = "auto", limit: int = 20) -> dict:
+    """Group one side's data segments into fleets (bursts sent back to back) with their sizes, start times and the period between them.
+
+    Args:
+        capture: Capture id, as returned by list_captures (e.g. 'tcp-trace1').
+        stream: TCP stream index (tcp.stream), as returned in flow_id by list_flows.
+        direction: Whose segments: 'client', 'server', or 'auto' (the side that sent more data).
+        limit: Maximum number of fleets to return, from the start of the connection.
+    """
+    return _backend(capture).tcp_fleets(stream, direction, limit).model_dump()
+
+
 # Tools that read one capture (each wraps the PcapBackend method of the same name).
-PCAP_TOOLS = [list_flows, packet_detail, apply_filter, tcp_handshake]
+PCAP_TOOLS = [list_flows, packet_detail, apply_filter, tcp_handshake, tcp_segments, tcp_stream_stats,
+              tcp_fleets]
 TOOLS = [list_captures, *PCAP_TOOLS]

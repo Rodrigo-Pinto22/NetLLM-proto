@@ -9,7 +9,8 @@ import shutil
 import pytest
 
 from netllm.config import ROOT
-from netllm.pcap.tshark_backend import TsharkBackend, TsharkError, _flag_names, _flatten
+from netllm.pcap.tcp_analysis import flag_names as _flag_names
+from netllm.pcap.tshark_backend import TsharkBackend, TsharkError, _flatten
 
 TRACE = ROOT / "data" / "traces" / "tcp-wireshark-trace1-1.pcapng"
 CLIENT, SERVER = "192.168.86.68", "128.119.245.12"
@@ -135,3 +136,54 @@ def test_errors_are_readable(backend):
         backend.packet_detail(999999)
     with pytest.raises(TsharkError, match="no TCP stream"):
         backend.tcp_handshake(999999)
+
+
+# ------------------------------------------------------------ computed TCP facts (step C)
+@needs_tshark
+def test_tcp_segments_rtt_and_ack_pattern(backend, upload_flow):
+    r = backend.tcp_segments(upload_flow.flow_id, direction="auto", limit=1000)
+    assert (r.sender, r.sender_port) == (CLIENT, 55639)  # the client uploads
+    segs = r.segments
+    first10 = segs[:10]
+    # tcp-ack-pattern-01
+    assert [s.number for s in first10] == [4, 5, 6, 9, 10, 11, 12, 14, 15, 20]
+    assert [s.acked_by for s in first10] == [7, 8, 13, 16, 17, 18, 19, 28, 29, 34]
+    assert all(s.ack_advance == 1448 for s in first10)
+    assert any(s.acked_by in (40, 41) and s.ack_advance == 2896 for s in segs)  # delayed ACKs later
+    # tcp-rtt-01
+    assert segs[0].seq == 1 and segs[0].len == 1448
+    assert segs[0].sample_rtt == pytest.approx(0.028624, abs=5e-6)
+    assert segs[1].sample_rtt == pytest.approx(0.028628, abs=5e-6)
+    # tcp-post-seq-01: 106 data segments, frames 4 to 153
+    assert r.total == 106 and segs[-1].number == 153
+    assert not any(s.retransmission for s in segs)
+
+
+@needs_tshark
+def test_tcp_stream_stats(backend, upload_flow):
+    st = backend.tcp_stream_stats(upload_flow.flow_id)
+    up = st.client_to_server
+    # tcp-throughput-01
+    assert up.payload_bytes == 153425
+    assert up.first_data_rel_ts == pytest.approx(0.024047, abs=1e-6)
+    assert up.last_byte_acked and up.last_byte_ack_rel_ts == pytest.approx(0.191496, abs=1e-6)
+    assert up.transfer_duration == pytest.approx(0.167449, abs=0.001)
+    assert up.throughput_bytes_per_s == pytest.approx(916249, abs=50000)
+    # tcp-retransmissions-01
+    assert up.retransmissions == 0 and st.server_to_client.duplicate_acks == 0
+    # tcp-rwnd-01: the server's smallest advertised window is the unscaled 28960 in the SYN-ACK
+    down = st.server_to_client
+    assert st.window_scaling is True
+    assert (down.window_min, down.window_min_packet) == (28960, 2)
+    assert up.mss == 1460
+
+
+@needs_tshark
+def test_tcp_fleets(backend, upload_flow):
+    # tcp-slow-start-01 and tcp-fleet-period-01. The pause after fleet 4 (before frame 68) is
+    # 10.6 ms and the longest pause inside it 5.1 ms: the threshold (RTT/3, 7.5 ms) must split there.
+    f = backend.tcp_fleets(upload_flow.flow_id)
+    assert [x.segments for x in f.fleets[:4]] == [3, 6, 12, 24]
+    assert [x.first_packet for x in f.fleets[:4]] == [4, 9, 20, 35]
+    assert f.start_intervals[0] == pytest.approx(0.028, abs=0.004)
+    assert f.start_intervals[1] == pytest.approx(0.028, abs=0.004)

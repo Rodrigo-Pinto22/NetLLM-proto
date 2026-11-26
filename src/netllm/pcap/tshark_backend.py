@@ -4,6 +4,7 @@ Every method runs tshark once or twice as a subprocess and builds the schema obj
 output. Two output modes are used:
   -T fields  one tab-separated line per packet with only the fields we ask for (fast, small);
   -T json    the full decode of one packet, for packet_detail only.
+The TCP tools read a stream's packets once (cached) and leave the arithmetic to tcp_analysis.py.
 
 Conventions (see schemas.py): frame numbers are Wireshark's frame.number, sequence numbers are
 raw (tcp.seq_raw), windows are the field as sent (tcp.window_size_value, never scaled here).
@@ -24,19 +25,18 @@ from .schemas import (
     FilterResult,
     Flow,
     FlowList,
-    HandshakeSegment,
     Layer,
     PacketDetail,
     PacketSummary,
+    TcpFleetList,
     TcpHandshake,
-    TcpOptions,
+    TcpSegmentList,
+    TcpStreamStats,
 )
+from .tcp_analysis import ACK, Pkt, TcpStream
 
-# TCP flag bits, in the order they are written in `flags` ('SYN,ACK', 'FIN,ACK', 'PSH,ACK').
-FLAGS = [("SYN", 0x02), ("FIN", 0x01), ("RST", 0x04), ("PSH", 0x08), ("URG", 0x20), ("ACK", 0x10)]
-SYN, ACK = 0x02, 0x10
 OPT_SACK_PERM, OPT_TIMESTAMPS = 4, 8  # TCP option kinds
-SEQ_MOD = 2**32                       # sequence numbers wrap around
+MAX_CACHED_STREAMS = 4
 
 # packet_detail keeps only real field names (e.g. 'tcp.seq_raw'), not tree labels ('Flags'), and
 # bounds the output so one packet cannot flood a small model's context.
@@ -46,6 +46,9 @@ MAX_VALUE_CHARS = 200
 
 SUMMARY_FIELDS = ["frame.number", "frame.time_relative", "frame.len",
                   "ip.src", "ip.dst", "ipv6.src", "ipv6.dst"]
+TCP_FIELDS = ["frame.number", "frame.time_relative", "ip.src", "ip.dst", "ipv6.src", "ipv6.dst",
+              "tcp.srcport", "tcp.dstport", "tcp.seq_raw", "tcp.ack_raw", "tcp.flags", "tcp.len",
+              "tcp.window_size_value", "tcp.option_kind", "tcp.options.mss_val", "tcp.options.wscale.shift"]
 
 
 class TsharkError(RuntimeError):
@@ -63,10 +66,6 @@ def _first(value: str) -> str:
 def _int(value: str) -> int | None:
     v = _first(value)
     return int(v) if v else None
-
-
-def _flag_names(bits: int) -> str:
-    return ",".join(name for name, bit in FLAGS if bits & bit)
 
 
 def _clip(text: str) -> str:
@@ -107,6 +106,7 @@ class TsharkBackend(PcapBackend):
                               "NETLLM_TSHARK_PATH")
         self.tshark = exe
         self.timeout = timeout
+        self._streams: dict[int, TcpStream] = {}
 
     # --------------------------------------------------------------- running tshark
     def _run(self, args: list[str]) -> str:
@@ -219,63 +219,41 @@ class TsharkBackend(PcapBackend):
         return FilterResult(display_filter=display_filter, packets=rows[:max(limit, 0)],
                             total=len(rows), truncated=len(rows) > limit)
 
-    def tcp_handshake(self, stream: int) -> TcpHandshake:
-        rows = self._fields(f"tcp.stream == {int(stream)}", [
-            "frame.number", "frame.time_relative", "ip.src", "ip.dst", "ipv6.src", "ipv6.dst",
-            "tcp.srcport", "tcp.dstport", "tcp.seq_raw", "tcp.ack_raw", "tcp.flags",
-            "tcp.window_size_value", "tcp.option_kind", "tcp.options.mss_val", "tcp.options.wscale.shift"])
-        if not rows:
-            raise TsharkError(f"There is no TCP stream {stream} in this capture (use flow_id from list_flows)")
-
-        segs = []
-        for r in rows:
-            bits = int(_first(r["tcp.flags"]), 16)
-            kinds = {int(k) for k in r["tcp.option_kind"].split(",") if k}
-            segs.append({
-                "src": _first(r["ip.src"]) or _first(r["ipv6.src"]), "bits": bits,
-                "port": int(_first(r["tcp.srcport"])),
-                "dst": _first(r["ip.dst"]) or _first(r["ipv6.dst"]), "dport": int(_first(r["tcp.dstport"])),
-                "seg": HandshakeSegment(
-                    number=int(r["frame.number"]),
-                    rel_ts=float(r["frame.time_relative"]),
+    def _tcp(self, stream: int) -> TcpStream:
+        """All packets of one TCP stream, parsed once and kept for the next tool call."""
+        stream = int(stream)
+        if stream not in self._streams:
+            pkts = []
+            for r in self._fields(f"tcp.stream == {stream}", TCP_FIELDS):
+                bits = int(_first(r["tcp.flags"]), 16)
+                kinds = {int(k) for k in r["tcp.option_kind"].split(",") if k}
+                pkts.append(Pkt(
+                    number=int(r["frame.number"]), t=float(r["frame.time_relative"]),
+                    src=_first(r["ip.src"]) or _first(r["ipv6.src"]), sport=int(_first(r["tcp.srcport"])),
+                    dst=_first(r["ip.dst"]) or _first(r["ipv6.dst"]), dport=int(_first(r["tcp.dstport"])),
                     seq=int(_first(r["tcp.seq_raw"])),
                     ack=int(_first(r["tcp.ack_raw"])) if bits & ACK else None,
-                    flags=_flag_names(bits),
+                    flags=bits, length=_int(r["tcp.len"]) or 0,
                     window=int(_first(r["tcp.window_size_value"])),
-                    options=TcpOptions(mss=_int(r["tcp.options.mss_val"]),
-                                       window_scale=_int(r["tcp.options.wscale.shift"]),
-                                       sack_permitted=OPT_SACK_PERM in kinds,
-                                       timestamps=OPT_TIMESTAMPS in kinds)),
-            })
+                    mss=_int(r["tcp.options.mss_val"]), wscale=_int(r["tcp.options.wscale.shift"]),
+                    sack_perm=OPT_SACK_PERM in kinds, timestamps=OPT_TIMESTAMPS in kinds))
+            try:
+                tcp = TcpStream(stream, pkts)
+            except ValueError as e:  # no such stream
+                raise TsharkError(str(e)) from e
+            if len(self._streams) >= MAX_CACHED_STREAMS:
+                self._streams.clear()
+            self._streams[stream] = tcp
+        return self._streams[stream]
 
-        def find(pred, after: int = -1):
-            return next((i for i, s in enumerate(segs) if i > after and pred(s)), None)
+    def tcp_handshake(self, stream: int) -> TcpHandshake:
+        return self._tcp(stream).handshake()
 
-        i_syn = find(lambda s: s["bits"] & SYN and not s["bits"] & ACK)
-        i_synack = find(lambda s: s["bits"] & SYN and s["bits"] & ACK, after=i_syn if i_syn is not None else -1)
-        # Client = whoever sent the SYN; without one (capture started late), the SYN-ACK's receiver,
-        # else the sender of the first packet.
-        if i_syn is not None:
-            c = segs[i_syn]
-            client, cport, server, sport = c["src"], c["port"], c["dst"], c["dport"]
-        elif i_synack is not None:
-            c = segs[i_synack]
-            client, cport, server, sport = c["dst"], c["dport"], c["src"], c["port"]
-        else:
-            c = segs[0]
-            client, cport, server, sport = c["src"], c["port"], c["dst"], c["dport"]
-        i_ack = None
-        if i_synack is not None:
-            i_ack = find(lambda s: s["src"] == client and s["port"] == cport
-                         and s["bits"] & ACK and not s["bits"] & SYN, after=i_synack)
+    def tcp_segments(self, stream: int, direction: str = "auto", limit: int = 50) -> TcpSegmentList:
+        return self._tcp(stream).segments(direction, limit)
 
-        syn = segs[i_syn]["seg"] if i_syn is not None else None
-        syn_ack = segs[i_synack]["seg"] if i_synack is not None else None
-        ack = segs[i_ack]["seg"] if i_ack is not None else None
-        complete = bool(syn and syn_ack and ack
-                        and syn_ack.ack == (syn.seq + 1) % SEQ_MOD
-                        and ack.seq == (syn.seq + 1) % SEQ_MOD
-                        and ack.ack == (syn_ack.seq + 1) % SEQ_MOD)
-        rtt = round(syn_ack.rel_ts - syn.rel_ts, 6) if syn and syn_ack else None
-        return TcpHandshake(stream=int(stream), client=client, client_port=cport, server=server,
-                            server_port=sport, syn=syn, syn_ack=syn_ack, ack=ack, complete=complete, rtt=rtt)
+    def tcp_stream_stats(self, stream: int) -> TcpStreamStats:
+        return self._tcp(stream).stats()
+
+    def tcp_fleets(self, stream: int, direction: str = "auto", limit: int = 20) -> TcpFleetList:
+        return self._tcp(stream).fleets(direction, limit)

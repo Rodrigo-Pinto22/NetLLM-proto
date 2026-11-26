@@ -36,6 +36,9 @@ cases:
   - id: filter-02
     prompt: "Are there any retransmitted segments in capture {capture}?"
     calls: [{name: apply_filter, args: {display_filter: retransmission}}]
+    also_ok:
+      - [{name: tcp_stream_stats}]
+      - [{name: list_flows}, {name: tcp_stream_stats}]
   - id: filter-03
     prompt: "List the packets sent by 128.119.245.12 in capture {capture}."
     calls: [{name: apply_filter, args: {display_filter: 128.119.245.12}}]
@@ -59,6 +62,23 @@ cases:
   - id: handshake-04
     prompt: "What window scale factor did the server announce in stream 0 of capture {capture}?"
     calls: [{name: tcp_handshake, args: {stream: 0}}]
+
+  # --- computed TCP facts ------------------------------------------------------------
+  - id: segments-01
+    prompt: "What are the sample RTTs of the first data segments in TCP stream 0 of capture {capture}?"
+    calls: [{name: tcp_segments, args: {stream: 0}}]
+  - id: segments-02
+    prompt: "In TCP stream 0 of capture {capture}, how many bytes does each ACK acknowledge?"
+    calls: [{name: tcp_segments, args: {stream: 0}}]
+  - id: stats-01
+    prompt: "What is the throughput of TCP stream 0 in capture {capture}?"
+    calls: [{name: tcp_stream_stats, args: {stream: 0}}]
+  - id: stats-02
+    prompt: "What is the smallest receive window the server advertises in TCP stream 0 of capture {capture}?"
+    calls: [{name: tcp_stream_stats, args: {stream: 0}}]
+  - id: fleets-01
+    prompt: "In TCP stream 0 of capture {capture}, does the sender send in bursts? How big are they and how far apart?"
+    calls: [{name: tcp_fleets, args: {stream: 0}}]
 
   # --- multi-step ----------------------------------------------------------------------
   - id: multi-01

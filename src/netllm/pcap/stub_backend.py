@@ -17,11 +17,38 @@ from .schemas import (
     Layer,
     PacketDetail,
     PacketSummary,
+    TcpFleetList,
     TcpHandshake,
     TcpOptions,
+    TcpSegmentList,
+    TcpStreamStats,
 )
+from .tcp_analysis import ACK, SYN, Pkt, TcpStream
 
 CLIENT, SERVER = "192.168.86.68", "128.119.245.12"
+C_ISN, S_ISN = 4236649187, 1068969752
+
+
+def _c(number, t, seq, length=0, window=2058, **kw):  # client -> server
+    return Pkt(number=number, t=t, src=CLIENT, sport=55639, dst=SERVER, dport=80, seq=C_ISN + seq,
+               ack=kw.pop("ack", S_ISN + 1), flags=kw.pop("flags", ACK), length=length, window=window, **kw)
+
+
+def _s(number, t, ack, window, **kw):  # server -> client (ACKs)
+    return Pkt(number=number, t=t, src=SERVER, sport=80, dst=CLIENT, dport=55639, seq=kw.pop("seq", S_ISN + 1),
+               ack=C_ISN + ack, flags=kw.pop("flags", ACK), length=0, window=window, **kw)
+
+
+# Packets from the first 13 frames of the trace: handshake, a fleet of 3, their ACKs, a second fleet.
+_PACKETS = [
+    _c(1, 0.0, 0, window=65535, ack=None, flags=SYN, mss=1460, wscale=6, sack_perm=True, timestamps=True),
+    _s(2, 0.022414, 1, 28960, seq=S_ISN, flags=SYN | ACK, mss=1460, wscale=7, sack_perm=True, timestamps=True),
+    _c(3, 0.022505, 1, timestamps=True),
+    _c(4, 0.024047, 1, 1448), _c(5, 0.024048, 1449, 1448), _c(6, 0.024049, 2897, 1448),
+    _s(7, 0.052671, 1449, 249), _s(8, 0.052676, 2897, 272),
+    _c(9, 0.052770, 4345, 1448), _c(10, 0.052771, 5793, 1448),
+    _s(13, 0.052980, 4345, 295),
+]
 
 
 class StubBackend(PcapBackend):
@@ -69,3 +96,14 @@ class StubBackend(PcapBackend):
             complete=True,
             rtt=0.022414,
         )
+
+    # The computed tools run the real analysis on the fixed packets above, so their output is
+    # consistent with each other and has exactly the real shape.
+    def tcp_segments(self, stream: int, direction: str = "auto", limit: int = 50) -> TcpSegmentList:
+        return TcpStream(stream, _PACKETS).segments(direction, limit)
+
+    def tcp_stream_stats(self, stream: int) -> TcpStreamStats:
+        return TcpStream(stream, _PACKETS).stats()
+
+    def tcp_fleets(self, stream: int, direction: str = "auto", limit: int = 20) -> TcpFleetList:
+        return TcpStream(stream, _PACKETS).fleets(direction, limit)

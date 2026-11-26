@@ -39,7 +39,7 @@ def test_stub_backend_serves_every_tool(monkeypatch):
 
     stub = StubBackend()
     monkeypatch.setattr(tools, "_backend", lambda capture: stub)
-    sample = {"capture": "x", "limit": 5, "number": 1, "display_filter": "tcp", "stream": 0}
+    sample = {"capture": "x", "limit": 5, "number": 1, "display_filter": "tcp", "stream": 0, "direction": "auto"}
     for fn in tools.PCAP_TOOLS:
         out = fn(**{k: sample[k] for k in inspect.signature(fn).parameters})
         assert isinstance(out, dict) and out
